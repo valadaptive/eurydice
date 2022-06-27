@@ -40,6 +40,19 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     }
 };
 
+// Deep equality check (for functions, arrays, and numbers).
+const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
+    if (typeof a !== typeof b) return false;
+    if (typeof a === 'object' && typeof b === 'object') {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (!equals(a[i], b[i])) return false;
+        }
+        return true;
+    }
+    return a === b;
+};
+
 const expectNumber = (input: ExpressionResult): number => {
     if (typeof input !== 'number') throw new TypeError('Expected number');
     return input;
@@ -48,6 +61,19 @@ const expectNumber = (input: ExpressionResult): number => {
 const expectArray = (input: ExpressionResult): ExpressionResult[] => {
     if (typeof input !== 'object') throw new TypeError('Expected array');
     return input;
+};
+
+const mapN = (repeat: number, expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult[] => {
+    const results = [];
+    for (let i = 0; i < repeat; i++) {
+        let result = evaluate(expr, variables);
+        // If it's a function, evaluate it.
+        // TODO: is this desirable? Right now I've just done it to implement fudge dice.
+        // This number-prefix stuff is already pretty automagic though.
+        if (typeof result === 'function') result = result();
+        results.push(result);
+    }
+    return results;
 };
 
 const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult => {
@@ -68,18 +94,7 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                     // Eagerly evaluate right-hand side and pass into function
                     case 'function': return lhs(evaluate(expr.rhs, variables));
                     // Evaluate right-hand side n times
-                    case 'number': {
-                        const results = [];
-                        for (let i = 0; i < lhs; i++) {
-                            let result = evaluate(expr.rhs, variables);
-                            // If it's a function, evaluate it.
-                            // TODO: is this desirable? Right now I've just done it to implement fudge dice.
-                            // This number-prefix stuff is already pretty automagic though.
-                            if (typeof result === 'function') result = result();
-                            results.push(result);
-                        }
-                        return results;
-                    }
+                    case 'number': return mapN(lhs, expr.rhs, variables);
                     case 'object': {
                         // The only allowed objects are arrays currently. Index into the array.
                         const rhs = Math.round(expectNumber(evaluate(expr.rhs, variables)));
@@ -108,6 +123,8 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 }
                 throw new TypeError('Expected number or array');
             }
+            if (expr.op === BinaryOpType.EQ) return Number(equals(lhs, rhs));
+            if (expr.op === BinaryOpType.NE) return Number(!equals(lhs, rhs));
             lhs = expectNumber(lhs);
             rhs = expectNumber(rhs);
             switch (expr.op) {
@@ -116,14 +133,21 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 case BinaryOpType.DIVIDE: return lhs / rhs;
                 case BinaryOpType.MODULO: return ((lhs % rhs) + rhs) % rhs;
                 case BinaryOpType.POWER: return Math.pow(lhs, rhs);
+                case BinaryOpType.LT: return Number(lhs < rhs);
+                case BinaryOpType.LE: return Number(lhs <= rhs);
+                case BinaryOpType.GT: return Number(lhs > rhs);
+                case BinaryOpType.GE: return Number(lhs >= rhs);
+                case BinaryOpType.OR: return Math.max(lhs, rhs);
+                case BinaryOpType.AND: return Math.min(lhs, rhs);
             }
             break;
         }
         case 'unary': {
             const rhs = evaluate(expr.rhs, variables);
             switch (expr.op) {
-                case UnaryOpType.POSITIVE: return rhs;
-                case UnaryOpType.NEGATIVE: return -rhs;
+                case UnaryOpType.POSITIVE: return expectNumber(rhs);
+                case UnaryOpType.NEGATIVE: return -expectNumber(rhs);
+                case UnaryOpType.NOT: return 1 - expectNumber(rhs);
                 case UnaryOpType.SUM: return expectArray(rhs)
                     .reduce((prev: number, cur) => prev + expectNumber(cur), 0);
             }
@@ -131,7 +155,11 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
         }
         case 'call': {
             const callee = evaluate(expr.callee, variables);
-            if (typeof callee !== 'function') throw new TypeError('Expected function');
+            if (typeof callee === 'number') {
+                if (expr.arguments.length !== 1) throw new Error('Cannot call a number like a function');
+                return mapN(callee, expr.arguments[0], variables);
+            }
+            if (typeof callee !== 'function') throw new TypeError('Expected function or number');
             return callee(...expr.arguments.map(arg => evaluate(arg, variables)));
         }
     }

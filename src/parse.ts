@@ -19,6 +19,7 @@ type CallExpression = {
 enum UnaryOpType {
     NEGATIVE,
     POSITIVE,
+    NOT,
     SUM
 }
 
@@ -29,6 +30,17 @@ enum BinaryOpType {
     DIVIDE,
     MODULO,
     POWER,
+
+    AND,
+    OR,
+
+    LT,
+    LE,
+    GT,
+    GE,
+    EQ,
+    NE,
+
     CONS
 }
 
@@ -53,6 +65,7 @@ type ArrayExpression = {
 const tokenTypeToUnaryOp: Partial<Record<TokenType, UnaryOpType>> = {
     [TokenType.PLUS]: UnaryOpType.POSITIVE,
     [TokenType.MINUS]: UnaryOpType.NEGATIVE,
+    [TokenType.BANG]: UnaryOpType.NOT,
     [TokenType.SUM]: UnaryOpType.SUM
 };
 
@@ -62,7 +75,17 @@ const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
     [TokenType.MULTIPLY]: BinaryOpType.MULTIPLY,
     [TokenType.DIVIDE]: BinaryOpType.DIVIDE,
     [TokenType.MODULO]: BinaryOpType.MODULO,
-    [TokenType.POWER]: BinaryOpType.POWER
+    [TokenType.POWER]: BinaryOpType.POWER,
+
+    [TokenType.OR]: BinaryOpType.OR,
+    [TokenType.AND]: BinaryOpType.AND,
+
+    [TokenType.LT]: BinaryOpType.LT,
+    [TokenType.LE]: BinaryOpType.LE,
+    [TokenType.GT]: BinaryOpType.GT,
+    [TokenType.GE]: BinaryOpType.GE,
+    [TokenType.EQ]: BinaryOpType.EQ,
+    [TokenType.NE]: BinaryOpType.NE
 };
 
 type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
@@ -70,6 +93,7 @@ type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExp
 const unaryOpTypeToOpString: Record<UnaryOpType, string> = {
     [UnaryOpType.POSITIVE]: '+',
     [UnaryOpType.NEGATIVE]: '-',
+    [UnaryOpType.NOT]: '!',
     [UnaryOpType.SUM]: '...'
 };
 
@@ -80,6 +104,14 @@ const binaryOpTypeToOpString: Record<BinaryOpType, string> = {
     [BinaryOpType.DIVIDE]: '/',
     [BinaryOpType.MODULO]: '%',
     [BinaryOpType.POWER]: '**',
+    [BinaryOpType.OR]: '|',
+    [BinaryOpType.AND]: '&',
+    [BinaryOpType.LT]: '<',
+    [BinaryOpType.LE]: '<=',
+    [BinaryOpType.GT]: '>',
+    [BinaryOpType.GE]: '>=',
+    [BinaryOpType.EQ]: '=',
+    [BinaryOpType.NE]: '!=',
     [BinaryOpType.CONS]: 'cons'
 };
 
@@ -163,9 +195,10 @@ const parseName = (lexer: Lexer): Variable | null => {
 };
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
-    [TokenType.PLUS]: 7,
-    [TokenType.MINUS]: 7,
-    [TokenType.SUM]: 7
+    [TokenType.PLUS]: 15,
+    [TokenType.MINUS]: 15,
+    [TokenType.BANG]: 15,
+    [TokenType.SUM]: 15
 };
 
 const parseUnary = (lexer: Lexer): UnaryExpression | null => {
@@ -181,16 +214,24 @@ const parseUnary = (lexer: Lexer): UnaryExpression | null => {
 };
 
 const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
-    [TokenType.PLUS]: [1, 2],
-    [TokenType.MINUS]: [1, 2],
-    [TokenType.MULTIPLY]: [3, 4],
-    [TokenType.DIVIDE]: [3, 4],
-    [TokenType.MODULO]: [3, 4],
-    [TokenType.POWER]: [5, 6],
-    [TokenType.PAREN_L]: [9, 10]
+    [TokenType.LT]: [1, 2],
+    [TokenType.LE]: [1, 2],
+    [TokenType.GT]: [1, 2],
+    [TokenType.GE]: [1, 2],
+    [TokenType.EQ]: [3, 4],
+    [TokenType.NE]: [3, 4],
+    [TokenType.OR]: [5, 6],
+    [TokenType.AND]: [7, 8],
+    [TokenType.PLUS]: [9, 10],
+    [TokenType.MINUS]: [9, 10],
+    [TokenType.MULTIPLY]: [11, 12],
+    [TokenType.DIVIDE]: [11, 12],
+    [TokenType.MODULO]: [11, 12],
+    [TokenType.POWER]: [13, 14],
+    [TokenType.PAREN_L]: [17, 18]
 };
 
-const emptyBindingPower = [12, 11];
+const emptyBindingPower = [20, 19];
 
 const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);

@@ -6,6 +6,17 @@ enum TokenType {
     MODULO,
     POWER,
 
+    LT,
+    LE,
+    GT,
+    GE,
+    EQ,
+    NE,
+
+    BANG,
+    OR,
+    AND,
+
     PAREN_L,
     PAREN_R,
     BRACKET_L,
@@ -32,6 +43,15 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     '/': TokenType.DIVIDE,
     '%': TokenType.MODULO,
     '**': TokenType.POWER,
+    '<': TokenType.LT,
+    '<=': TokenType.LE,
+    '>': TokenType.GT,
+    '>=': TokenType.GE,
+    '=': TokenType.EQ,
+    '!=': TokenType.NE,
+    '!': TokenType.BANG,
+    '|': TokenType.OR,
+    '&': TokenType.AND,
     '(': TokenType.PAREN_L,
     ')': TokenType.PAREN_R,
     '[': TokenType.BRACKET_L,
@@ -47,7 +67,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|\(|\)|\[|\]|,|\.\.\.)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+)|(\s+)`, 'y');
+        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<|<=|>|>=|=|!=|!|\||&|\(|\)|\[|\]|,|\.\.\.)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+)|(\s+)`, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }

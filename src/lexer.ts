@@ -11,6 +11,7 @@ enum TokenType {
     BRACKET_L,
     BRACKET_R,
     COMMA,
+    SUM,
 
     NUMBER,
     NAME,
@@ -35,7 +36,8 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     ')': TokenType.PAREN_R,
     '[': TokenType.BRACKET_L,
     ']': TokenType.BRACKET_R,
-    ',': TokenType.COMMA
+    ',': TokenType.COMMA,
+    '...': TokenType.SUM
 };
 
 class Lexer {
@@ -45,7 +47,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|\(|\)|\[|\]|,)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+)|(\s+)`, 'y');
+        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|\(|\)|\[|\]|,|\.\.\.)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+)|(\s+)`, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }
@@ -91,16 +93,6 @@ class Lexer {
         return this._regex.lastIndex;
     }
 }
-
-/*const lexer = new Lexer('(1 + 2) - .3e+2 * 4 / 5**6 + 5d4 + dfloor(5)');
-
-const tokens = [];
-for (;;) {
-    const nextToken = lexer.next();
-    tokens.push(nextToken);
-    if (nextToken.type === TokenType.EOF) break;
-}
-console.log(tokens);*/
 
 export {Token, TokenType};
 

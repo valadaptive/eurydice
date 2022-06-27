@@ -18,7 +18,8 @@ type CallExpression = {
 
 enum UnaryOpType {
     NEGATIVE,
-    POSITIVE
+    POSITIVE,
+    SUM
 }
 
 enum BinaryOpType {
@@ -51,7 +52,8 @@ type ArrayExpression = {
 
 const tokenTypeToUnaryOp: Partial<Record<TokenType, UnaryOpType>> = {
     [TokenType.PLUS]: UnaryOpType.POSITIVE,
-    [TokenType.MINUS]: UnaryOpType.NEGATIVE
+    [TokenType.MINUS]: UnaryOpType.NEGATIVE,
+    [TokenType.SUM]: UnaryOpType.SUM
 };
 
 const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
@@ -67,7 +69,8 @@ type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExp
 
 const unaryOpTypeToOpString: Record<UnaryOpType, string> = {
     [UnaryOpType.POSITIVE]: '+',
-    [UnaryOpType.NEGATIVE]: '-'
+    [UnaryOpType.NEGATIVE]: '-',
+    [UnaryOpType.SUM]: '...'
 };
 
 const binaryOpTypeToOpString: Record<BinaryOpType, string> = {
@@ -161,7 +164,8 @@ const parseName = (lexer: Lexer): Variable | null => {
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
     [TokenType.PLUS]: 7,
-    [TokenType.MINUS]: 7
+    [TokenType.MINUS]: 7,
+    [TokenType.SUM]: 7
 };
 
 const parseUnary = (lexer: Lexer): UnaryExpression | null => {

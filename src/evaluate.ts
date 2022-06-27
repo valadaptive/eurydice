@@ -42,6 +42,11 @@ const expectNumber = (input: ExpressionResult): number => {
     return input;
 };
 
+const expectArray = (input: ExpressionResult): ExpressionResult[] => {
+    if (typeof input !== 'object') throw new TypeError('Expected array');
+    return input;
+};
+
 const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult => {
     switch (expr.type) {
         case 'number': return expr.value;
@@ -59,14 +64,14 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 switch (typeof lhs) {
                     // Eagerly evaluate right-hand side and pass into function
                     case 'function': return lhs(evaluate(expr.rhs, variables));
-                    // Evaluate right-hand side n times and sum
+                    // Evaluate right-hand side n times
                     case 'number': {
-                        let sum = 0;
+                        const results = [];
                         for (let i = 0; i < lhs; i++) {
                             const result = evaluate(expr.rhs, variables);
-                            sum += expectNumber(result);
+                            results.push(result);
                         }
-                        return sum;
+                        return results;
                     }
                     case 'object': {
                         // The only allowed objects are arrays currently. Index into the array.
@@ -112,6 +117,8 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
             switch (expr.op) {
                 case UnaryOpType.POSITIVE: return rhs;
                 case UnaryOpType.NEGATIVE: return -rhs;
+                case UnaryOpType.SUM: return expectArray(rhs)
+                    .reduce((prev: number, cur) => prev + expectNumber(cur), 0);
             }
             break;
         }

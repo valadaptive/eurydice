@@ -44,6 +44,11 @@ type BinaryExpression = {
     rhs: Expression
 };
 
+type ArrayExpression = {
+    type: 'array',
+    elements: Expression[]
+};
+
 const tokenTypeToUnaryOp: Partial<Record<TokenType, UnaryOpType>> = {
     [TokenType.PLUS]: UnaryOpType.POSITIVE,
     [TokenType.MINUS]: UnaryOpType.NEGATIVE
@@ -58,7 +63,7 @@ const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
     [TokenType.POWER]: BinaryOpType.POWER
 };
 
-type Expression = UnaryExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
+type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
 
 const unaryOpTypeToOpString: Record<UnaryOpType, string> = {
     [UnaryOpType.POSITIVE]: '+',
@@ -81,6 +86,7 @@ const sexpr = (expr: Expression): string => {
         case 'number': return expr.value.toString();
         case 'unary': return `(${unaryOpTypeToOpString[expr.op]} ${sexpr(expr.rhs)})`;
         case 'call': return `(call ${sexpr(expr.callee)} ${expr.arguments.map(arg => sexpr(arg)).join(' ')})`;
+        case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'binary': return `(${binaryOpTypeToOpString[expr.op]} ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
     }
 };
@@ -125,6 +131,27 @@ const parseParenthesized = (lexer: Lexer): Expression | null => {
     return inner;
 };
 
+const parseArray = (lexer: Lexer): Expression | null => {
+    const next = lexer.peek();
+    if (next.type !== TokenType.BRACKET_L) return null;
+    lexer.next();
+    const elements: Expression[] = [];
+    if (lexer.peek().type !== TokenType.BRACKET_R) {
+        for (;;) {
+            const parsedExpr = parseExpression(lexer, 0);
+            if (parsedExpr === null) throw new Error('Expected expression');
+            elements.push(parsedExpr);
+            if (lexer.peek().type !== TokenType.COMMA) break;
+            lexer.next();
+        }
+    }
+    if (lexer.peek().type !== TokenType.BRACKET_R) {
+        throw new Error(`Expected closing bracket`);
+    }
+    lexer.next();
+    return {type: 'array', elements};
+};
+
 const parseName = (lexer: Lexer): Variable | null => {
     const next = lexer.peek();
     if (next.type !== TokenType.NAME) return null;
@@ -164,13 +191,19 @@ const emptyBindingPower = [12, 11];
 const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);
     if (lhs === null) lhs = parseParenthesized(lexer);
+    if (lhs === null) lhs = parseArray(lexer);
     if (lhs === null) lhs = parseUnary(lexer);
     if (lhs === null) lhs = parseName(lexer);
     if (lhs === null) return null;
 
     for (;;) {
         const op = lexer.peek();
-        if (op.type === TokenType.EOF || op.type === TokenType.COMMA || op.type === TokenType.PAREN_R) break;
+        if (
+            op.type === TokenType.EOF ||
+            op.type === TokenType.COMMA ||
+            op.type === TokenType.PAREN_R ||
+            op.type === TokenType.BRACKET_R
+        ) break;
 
         const bindingPowers = infixBindingPower[op.type];
 

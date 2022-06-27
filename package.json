@@ -4,7 +4,14 @@
   "description": "Dice-rolling engine",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "interactive": "ts-node --transpile-only src/interactive.ts",
+    "eval": "ts-node --transpile-only src/index.ts"
+  },
+  "bin": {
+    "interactive": "build/interactive.js",
+    "eval": "build/index.js"
   },
   "author": "",
   "license": "ISC",

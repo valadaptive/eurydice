@@ -67,4 +67,16 @@ Sometimes, anonymous functions can come in handy. Take, for example, the built-i
 9
 ```
 
+## Trying it out
+
 Eurydice is something I quickly put together for fun, and there are still a ton of rough edges and a lack of documentation. Let me know if this is something you'd be interested in using!
+
+To start, install the dependencies:
+```bash
+npm run install
+```
+
+then start the interactive prompt:
+```
+npm run interactive
+```

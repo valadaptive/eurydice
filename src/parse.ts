@@ -271,11 +271,10 @@ const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
     [TokenType.DIVIDE]: [15, 16],
     [TokenType.MODULO]: [15, 16],
     [TokenType.POWER]: [17, 18],
-    [TokenType.PAREN_L]: [23, 24]
+    [TokenType.PAREN_L]: [21, 22]
 };
 
-// TODO there was probably a good reason to keep this lower than PAREN_L that I will discover tomorrow
-const emptyBindingPower = [21, 22];
+const emptyBindingPower = [24, 23];
 
 const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);

@@ -54,6 +54,12 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     len: (arr: ExpressionResult): number => {
         return expectArray(arr).length;
     },
+    /** Map each array element over a function */
+    map: (arr: ExpressionResult, mapper: ExpressionResult) => {
+        arr = expectArray(arr);
+        const mapperFunc = expectFunction(mapper);
+        return arr.map(v => mapperFunc(v));
+    },
     /** Run a "reducer" function over an array. */
     reduce: (arr: ExpressionResult, reducer: ExpressionResult, initialValue: ExpressionResult): ExpressionResult => {
         const reducerFunc = expectFunction(reducer);

@@ -5,7 +5,6 @@ enum TokenType {
     DIVIDE,
     MODULO,
     POWER,
-    DICE,
 
     PAREN_L,
     PAREN_R,
@@ -66,11 +65,7 @@ class Lexer {
             }
             // Names
             if (typeof match[3] === 'string') {
-                if (match[3] === 'd') {
-                    return {type: TokenType.DICE, value: match[3], start: match.index};
-                } else {
-                    return {type: TokenType.NAME, value: match[3], start: match.index};
-                }
+                return {type: TokenType.NAME, value: match[3], start: match.index};
             }
             // Whitespace
             if (typeof match[4] === 'string') continue;

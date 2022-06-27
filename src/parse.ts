@@ -28,7 +28,7 @@ enum BinaryOpType {
     DIVIDE,
     MODULO,
     POWER,
-    DICE
+    CONS
 }
 
 type UnaryExpression = {
@@ -55,8 +55,7 @@ const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
     [TokenType.MULTIPLY]: BinaryOpType.MULTIPLY,
     [TokenType.DIVIDE]: BinaryOpType.DIVIDE,
     [TokenType.MODULO]: BinaryOpType.MODULO,
-    [TokenType.POWER]: BinaryOpType.POWER,
-    [TokenType.DICE]: BinaryOpType.DICE
+    [TokenType.POWER]: BinaryOpType.POWER
 };
 
 type Expression = UnaryExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
@@ -73,7 +72,7 @@ const binaryOpTypeToOpString: Record<BinaryOpType, string> = {
     [BinaryOpType.DIVIDE]: '/',
     [BinaryOpType.MODULO]: '%',
     [BinaryOpType.POWER]: '**',
-    [BinaryOpType.DICE]: 'd'
+    [BinaryOpType.CONS]: 'cons'
 };
 
 const sexpr = (expr: Expression): string => {
@@ -91,12 +90,15 @@ const parse = (input: string): Expression => {
     let parsed;
     try {
         parsed = parseExpression(lexer, 0);
+        if (parsed === null) throw new Error('Expected expression');
     } catch (err) {
-        let newMessage = `Parse error: ${(err as Error).message}\n`;
+        const error = err as Error;
+        let newMessage = `Parse error: ${error.message}\n`;
         newMessage += input + '\n';
         const lexPosition = lexer.index();
         newMessage += '-'.repeat(lexPosition - 1) + '^';
-        throw new Error(newMessage);
+        error.message = newMessage;
+        throw error;
     }
     return parsed;
 };
@@ -143,6 +145,7 @@ const parseUnary = (lexer: Lexer): UnaryExpression | null => {
     if (typeof opType !== 'number') throw new Error(`Missing unary op type for ${next.value}`);
     lexer.next();
     const rhs = parseExpression(lexer, rbp);
+    if (rhs === null) throw new Error('Expected expression');
     return {type: 'unary', op: opType, rhs};
 };
 
@@ -153,66 +156,60 @@ const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
     [TokenType.DIVIDE]: [3, 4],
     [TokenType.MODULO]: [3, 4],
     [TokenType.POWER]: [5, 6],
-    [TokenType.DICE]: [9, 10],
-    [TokenType.PAREN_L]: [11, 12]
+    [TokenType.PAREN_L]: [9, 10]
 };
 
-const parseExpression = (lexer: Lexer, minBP: number): Expression => {
+const emptyBindingPower = [12, 11];
+
+const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);
     if (lhs === null) lhs = parseParenthesized(lexer);
     if (lhs === null) lhs = parseUnary(lexer);
     if (lhs === null) lhs = parseName(lexer);
-    if (lhs === null) {
-        throw new Error(`Unexpected token: ${lexer.peek().value}`);
-    }
+    if (lhs === null) return null;
 
     for (;;) {
         const op = lexer.peek();
-        if (op.type === TokenType.EOF) break;
-        if (!(
-            op.type === TokenType.PLUS ||
-            op.type === TokenType.MINUS ||
-            op.type === TokenType.MULTIPLY ||
-            op.type === TokenType.DIVIDE ||
-            op.type === TokenType.MODULO ||
-            op.type === TokenType.POWER ||
-            op.type === TokenType.DICE ||
-            op.type === TokenType.PAREN_L ||
-            op.type === TokenType.PAREN_R ||
-            op.type === TokenType.COMMA
-        )) {
-            throw new Error(`Unexpected token: ${op.value}`);
-        }
+        if (op.type === TokenType.EOF || op.type === TokenType.COMMA || op.type === TokenType.PAREN_R) break;
 
         const bindingPowers = infixBindingPower[op.type];
-        if (bindingPowers) {
-            const [lbp, rbp] = bindingPowers;
+
+        // Two expressions in a row. Evaluate these as `cons`.
+        // Used for easier function calls and whatnot (e.g. in "d20", "d" can be a function and "20" its argument).
+        if (!bindingPowers) {
+            const [lbp, rbp] = emptyBindingPower;
             if (lbp < minBP) break;
-            lexer.next();
-            // Left parenthesis in infix position--it's a function call
-            if (op.type === TokenType.PAREN_L) {
-                const args: Expression[] = [];
-                if (lexer.peek().type !== TokenType.PAREN_R) {
-                    for (;;) {
-                        args.push(parseExpression(lexer, 0));
-                        if (lexer.peek().type !== TokenType.COMMA) break;
-                        lexer.next();
-                    }
-                }
-                if (lexer.peek().type !== TokenType.PAREN_R) {
-                    throw new Error(`Expected right parenthesis`);
-                }
-                lhs = {type: 'call', callee: lhs, arguments: args};
-            } else {
-                const rhs = parseExpression(lexer, rbp);
-                const opType = tokenTypeToBinaryOp[op.type];
-                if (typeof opType !== 'number') throw new Error(`Missing binary op type for ${op.value}`);
-                lhs = {type: 'binary', op: opType, lhs, rhs};
-            }
+            const rhs = parseExpression(lexer, rbp);
+            if (rhs === null) throw new Error('Expected expression');
+            lhs = {type: 'binary', op: BinaryOpType.CONS, lhs, rhs};
             continue;
         }
-
-        break;
+        const [lbp, rbp] = bindingPowers;
+        if (lbp < minBP) break;
+        lexer.next();
+        // Left parenthesis in infix position--it's a function call
+        if (op.type === TokenType.PAREN_L) {
+            const args: Expression[] = [];
+            if (lexer.peek().type !== TokenType.PAREN_R) {
+                for (;;) {
+                    const parsedExpr = parseExpression(lexer, 0);
+                    if (parsedExpr === null) throw new Error('Expected expression');
+                    args.push(parsedExpr);
+                    if (lexer.peek().type !== TokenType.COMMA) break;
+                    lexer.next();
+                }
+            }
+            if (lexer.peek().type !== TokenType.PAREN_R) {
+                throw new Error(`Expected right parenthesis`);
+            }
+            lhs = {type: 'call', callee: lhs, arguments: args};
+        } else {
+            const rhs = parseExpression(lexer, rbp);
+            if (rhs === null) throw new Error('Expected expression');
+            const opType = tokenTypeToBinaryOp[op.type];
+            if (typeof opType !== 'number') throw new Error(`Missing binary op type for ${op.value}`);
+            lhs = {type: 'binary', op: opType, lhs, rhs};
+        }
     }
 
     return lhs;

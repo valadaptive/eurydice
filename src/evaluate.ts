@@ -6,7 +6,7 @@ type ExprFunc = (...args: ExpressionResult[]) => ExpressionResult;
 
 const typecheckBuiltin = (inFunc: (n: number) => number): ExprFunc => {
     return (n: ExpressionResult): number => {
-        if (typeof n !== 'number') throw new Error('Expected number');
+        if (typeof n !== 'number') throw new TypeError('Expected number');
         return inFunc(n);
     };
 };
@@ -15,7 +15,10 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     floor: typecheckBuiltin(Math.floor),
     ceil: typecheckBuiltin(Math.ceil),
     round: typecheckBuiltin(Math.round),
-    abs: typecheckBuiltin(Math.abs)
+    abs: typecheckBuiltin(Math.abs),
+    d: typecheckBuiltin((n: number): number =>
+        Math.floor(Math.random() * Math.round(n)) + 1
+    )
 };
 
 const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult => {
@@ -30,6 +33,22 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
         }
         case 'binary': {
             const lhs = evaluate(expr.lhs, variables);
+            if (expr.op === BinaryOpType.CONS) {
+                switch (typeof lhs) {
+                    // Eagerly evaluate right-hand side and pass into function
+                    case 'function': return lhs(evaluate(expr.rhs, variables));
+                    // Evaluate right-hand side n times and sum
+                    case 'number': {
+                        let sum = 0;
+                        for (let i = 0; i < lhs; i++) {
+                            const result = evaluate(expr.rhs, variables);
+                            if (typeof result !== 'number') throw new TypeError('Expected number');
+                            sum += result;
+                        }
+                        return sum;
+                    }
+                }
+            }
             const rhs = evaluate(expr.rhs, variables);
             if (typeof lhs !== 'number') throw new TypeError('Expected number');
             if (typeof rhs !== 'number') throw new TypeError('Expected number');
@@ -40,14 +59,6 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 case BinaryOpType.DIVIDE: return lhs / rhs;
                 case BinaryOpType.MODULO: return ((lhs % rhs) + rhs) % rhs;
                 case BinaryOpType.POWER: return Math.pow(lhs, rhs);
-                case BinaryOpType.DICE: {
-                    let sum = 0;
-                    for (let i = 0; i < Math.round(lhs); i++) {
-                        const roll = Math.floor(Math.random() * Math.round(rhs)) + 1;
-                        sum += roll;
-                    }
-                    return sum;
-                }
             }
             break;
         }

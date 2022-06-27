@@ -2,8 +2,7 @@
 import parse, {sexpr} from './parse';
 import evaluate from './evaluate';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-const input = process.argv[2] as string;
+const input = process.argv[2];
 
 console.log(sexpr(parse(input)));
 console.log(evaluate(parse(input)));

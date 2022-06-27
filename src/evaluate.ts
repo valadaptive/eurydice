@@ -34,6 +34,9 @@ const builtins: Partial<Record<string, ExprFunc>> = {
             }
         }
         throw new Error('Expected number or array of numbers');
+    },
+    dF: (): number => {
+        return [-1, 0, 1][Math.floor(Math.random() * 3)];
     }
 };
 
@@ -68,7 +71,11 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                     case 'number': {
                         const results = [];
                         for (let i = 0; i < lhs; i++) {
-                            const result = evaluate(expr.rhs, variables);
+                            let result = evaluate(expr.rhs, variables);
+                            // If it's a function, evaluate it.
+                            // TODO: is this desirable? Right now I've just done it to implement fudge dice.
+                            // This number-prefix stuff is already pretty automagic though.
+                            if (typeof result === 'function') result = result();
                             results.push(result);
                         }
                         return results;

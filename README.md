@@ -73,7 +73,7 @@ Eurydice is something I quickly put together for fun, and there are still a ton 
 
 To start, install the dependencies:
 ```bash
-npm run install
+npm install
 ```
 
 then start the interactive prompt:

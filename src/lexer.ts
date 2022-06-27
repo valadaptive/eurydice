@@ -13,6 +13,9 @@ enum TokenType {
     EQ,
     NE,
 
+    HIGHEST,
+    LOWEST,
+
     BANG,
     OR,
     AND,
@@ -49,6 +52,8 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     '>=': TokenType.GE,
     '=': TokenType.EQ,
     '!=': TokenType.NE,
+    'hi': TokenType.HIGHEST,
+    'lo': TokenType.LOWEST,
     '!': TokenType.BANG,
     '|': TokenType.OR,
     '&': TokenType.AND,
@@ -91,6 +96,9 @@ class Lexer {
             }
             // Names
             if (typeof match[3] === 'string') {
+                // Also check for static tokens
+                const tokenType = staticTokenToType[match[3]];
+                if (typeof tokenType === 'number') return {type: tokenType, value: match[3], start: match.index};
                 return {type: TokenType.NAME, value: match[3], start: match.index};
             }
             // Whitespace

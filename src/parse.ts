@@ -41,6 +41,9 @@ enum BinaryOpType {
     EQ,
     NE,
 
+    HIGHEST,
+    LOWEST,
+
     CONS
 }
 
@@ -85,7 +88,10 @@ const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
     [TokenType.GT]: BinaryOpType.GT,
     [TokenType.GE]: BinaryOpType.GE,
     [TokenType.EQ]: BinaryOpType.EQ,
-    [TokenType.NE]: BinaryOpType.NE
+    [TokenType.NE]: BinaryOpType.NE,
+
+    [TokenType.HIGHEST]: BinaryOpType.HIGHEST,
+    [TokenType.LOWEST]: BinaryOpType.LOWEST
 };
 
 type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
@@ -112,6 +118,8 @@ const binaryOpTypeToOpString: Record<BinaryOpType, string> = {
     [BinaryOpType.GE]: '>=',
     [BinaryOpType.EQ]: '=',
     [BinaryOpType.NE]: '!=',
+    [BinaryOpType.HIGHEST]: 'hi',
+    [BinaryOpType.LOWEST]: 'lo',
     [BinaryOpType.CONS]: 'cons'
 };
 
@@ -195,10 +203,10 @@ const parseName = (lexer: Lexer): Variable | null => {
 };
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
-    [TokenType.PLUS]: 15,
-    [TokenType.MINUS]: 15,
-    [TokenType.BANG]: 15,
-    [TokenType.SUM]: 15
+    [TokenType.PLUS]: 17,
+    [TokenType.MINUS]: 17,
+    [TokenType.BANG]: 17,
+    [TokenType.SUM]: 17
 };
 
 const parseUnary = (lexer: Lexer): UnaryExpression | null => {
@@ -221,17 +229,19 @@ const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
     [TokenType.EQ]: [3, 4],
     [TokenType.NE]: [3, 4],
     [TokenType.OR]: [5, 6],
-    [TokenType.AND]: [7, 8],
-    [TokenType.PLUS]: [9, 10],
-    [TokenType.MINUS]: [9, 10],
-    [TokenType.MULTIPLY]: [11, 12],
-    [TokenType.DIVIDE]: [11, 12],
-    [TokenType.MODULO]: [11, 12],
-    [TokenType.POWER]: [13, 14],
-    [TokenType.PAREN_L]: [17, 18]
+    [TokenType.HIGHEST]: [7, 8],
+    [TokenType.LOWEST]: [7, 8],
+    [TokenType.AND]: [9, 10],
+    [TokenType.PLUS]: [11, 12],
+    [TokenType.MINUS]: [11, 12],
+    [TokenType.MULTIPLY]: [13, 14],
+    [TokenType.DIVIDE]: [13, 14],
+    [TokenType.MODULO]: [13, 14],
+    [TokenType.POWER]: [15, 16],
+    [TokenType.PAREN_L]: [19, 20]
 };
 
-const emptyBindingPower = [20, 19];
+const emptyBindingPower = [22, 21];
 
 const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);

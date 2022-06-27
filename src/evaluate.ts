@@ -37,6 +37,15 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     },
     dF: (): number => {
         return [-1, 0, 1][Math.floor(Math.random() * 3)];
+    },
+    sort: (arr: ExpressionResult): ExpressionResult[] => {
+        const sorted = expectArrayOfNumbers(arr)
+            .slice(0)
+            .sort((a: ExpressionResult, b: ExpressionResult) => (a as number) - (b as number));
+        return sorted;
+    },
+    len: (arr: ExpressionResult): number => {
+        return expectArray(arr).length;
     }
 };
 
@@ -63,6 +72,14 @@ const expectArray = (input: ExpressionResult): ExpressionResult[] => {
     return input;
 };
 
+const expectArrayOfNumbers = (input: ExpressionResult): number[] => {
+    input = expectArray(input);
+    for (const elem of input) {
+        expectNumber(elem);
+    }
+    return input as number[];
+};
+
 const mapN = (repeat: number, expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult[] => {
     const results = [];
     for (let i = 0; i < repeat; i++) {
@@ -74,6 +91,20 @@ const mapN = (repeat: number, expr: Expression, variables?: Record<string, Expre
         results.push(result);
     }
     return results;
+};
+
+const keepHighest = (items: number[], n: number): number[] => {
+    return items
+        .slice(0)
+        .sort((a, b) => a - b)
+        .slice(items.length - n);
+};
+
+const keepLowest = (items: number[], n: number): number[] => {
+    return items
+        .slice(0)
+        .sort((a, b) => b - a)
+        .slice(items.length - n);
 };
 
 const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult => {
@@ -104,27 +135,31 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 }
             }
             let rhs = evaluate(expr.rhs, variables);
-            if (expr.op === BinaryOpType.ADD) {
-                // Concatenate arrays
-                if (typeof lhs === 'object' && typeof rhs === 'object') {
-                    return [...lhs, ...rhs];
+            switch (expr.op) {
+                case BinaryOpType.ADD: {
+                    // Concatenate arrays
+                    if (typeof lhs === 'object' && typeof rhs === 'object') {
+                        return [...lhs, ...rhs];
+                    }
+                    // Append to array
+                    if (typeof lhs === 'object' && typeof rhs === 'number') {
+                        return [...lhs, rhs];
+                    }
+                    // Prepend to array
+                    if (typeof lhs === 'number' && typeof rhs === 'object') {
+                        return [lhs, ...rhs];
+                    }
+                    // Add numbers
+                    if (typeof lhs === 'number' && typeof rhs === 'number') {
+                        return lhs + rhs;
+                    }
+                    throw new TypeError('Expected number or array');
                 }
-                // Append to array
-                if (typeof lhs === 'object' && typeof rhs === 'number') {
-                    return [...lhs, rhs];
-                }
-                // Prepend to array
-                if (typeof lhs === 'number' && typeof rhs === 'object') {
-                    return [lhs, ...rhs];
-                }
-                // Add numbers
-                if (typeof lhs === 'number' && typeof rhs === 'number') {
-                    return lhs + rhs;
-                }
-                throw new TypeError('Expected number or array');
+                case BinaryOpType.EQ: return Number(equals(lhs, rhs));
+                case BinaryOpType.NE: return Number(!equals(lhs, rhs));
+                case BinaryOpType.HIGHEST: return keepHighest(expectArrayOfNumbers(lhs), expectNumber(rhs));
+                case BinaryOpType.LOWEST: return keepLowest(expectArrayOfNumbers(lhs), expectNumber(rhs));
             }
-            if (expr.op === BinaryOpType.EQ) return Number(equals(lhs, rhs));
-            if (expr.op === BinaryOpType.NE) return Number(!equals(lhs, rhs));
             lhs = expectNumber(lhs);
             rhs = expectNumber(rhs);
             switch (expr.op) {

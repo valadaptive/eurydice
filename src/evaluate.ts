@@ -4,21 +4,25 @@ type ExpressionResult = number | ExprFunc | ExpressionResult[];
 
 type ExprFunc = (...args: ExpressionResult[]) => ExpressionResult;
 
-const typecheckBuiltin = (inFunc: (n: number) => number): ExprFunc => {
-    return (n: ExpressionResult): number => {
-        if (typeof n !== 'number') throw new TypeError('Expected number');
-        return inFunc(n);
-    };
-};
+const truthy = (value: number): boolean => value > 0;
+
+const MAX_REROLLS = 100;
 
 const builtins: Partial<Record<string, ExprFunc>> = {
-    floor: typecheckBuiltin(Math.floor),
-    ceil: typecheckBuiltin(Math.ceil),
-    round: typecheckBuiltin(Math.round),
-    abs: typecheckBuiltin(Math.abs),
-    // You can specify a number (to roll a die from 1 to that number inclusive),
-    // or an array of face values, possibly nested.
-    // For instance, a d[1, [2, 3]] has a 50% chance of rolling a 1, 25% of rolling a 2, and 25% of rolling a 3.
+    /** Round a number down. */
+    floor: n => Math.floor(expectNumber(n)),
+    /** Round a number up. */
+    ceil: n => Math.ceil(expectNumber(n)),
+    /** Round a number to the nearest whole number. */
+    round: n => Math.round(expectNumber(n)),
+    /** Take the absolute value of a number. */
+    abs: n => Math.abs(expectNumber(n)),
+    /**
+     * Roll a die.
+     * You can specify a number (to roll a die from 1 to that number inclusive),
+     * or an array of face values, possibly nested.
+     * For instance, a d[1, [2, 3]] has a 50% chance of rolling a 1, 25% of rolling a 2, and 25% of rolling a 3.
+     */
     d: (n: ExpressionResult): number => {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
         if (typeof n === 'object') {
@@ -35,17 +39,56 @@ const builtins: Partial<Record<string, ExprFunc>> = {
         }
         throw new Error('Expected number or array of numbers');
     },
+    /** Roll a FATE/FUDGE die (-1, 0, or 1). */
     dF: (): number => {
         return [-1, 0, 1][Math.floor(Math.random() * 3)];
     },
+    /** Sort an array from lowest to highest. */
     sort: (arr: ExpressionResult): ExpressionResult[] => {
         const sorted = expectArrayOfNumbers(arr)
             .slice(0)
             .sort((a: ExpressionResult, b: ExpressionResult) => (a as number) - (b as number));
         return sorted;
     },
+    /** Get the length of an array. */
     len: (arr: ExpressionResult): number => {
         return expectArray(arr).length;
+    },
+    /** Run a "reducer" function over an array. */
+    reduce: (arr: ExpressionResult, reducer: ExpressionResult, initialValue: ExpressionResult): ExpressionResult => {
+        const reducerFunc = expectFunction(reducer);
+        return expectArray(arr).reduce(
+            (prev: ExpressionResult, cur: ExpressionResult) => reducerFunc(prev, cur), initialValue);
+    },
+    /** Reroll a die (using the first argument function) until the second argument function returns a truthy value. */
+    reroll: (rollFunc: ExpressionResult, condFunc: ExpressionResult): number => {
+        rollFunc = expectFunction(rollFunc);
+        condFunc = expectFunction(condFunc);
+        for (let i = 0; i < MAX_REROLLS; i++) {
+            const roll = expectNumber(rollFunc());
+            const isGood = truthy(expectNumber(condFunc(roll)));
+            if (isGood) return roll;
+        }
+        throw new Error('Maximum rerolls exceeded');
+    },
+    /**
+     * Exploding dice!
+     * Roll n dice, and every time one comes up truthy (according to the third argument), you can reroll it.
+     * If that reroll comes up truthy again, keep rerolling. */
+    explode: (numRolls: ExpressionResult, rollFunc: ExpressionResult, condFunc: ExpressionResult): number[] => {
+        numRolls = expectNumber(numRolls);
+        rollFunc = expectFunction(rollFunc);
+        condFunc = expectFunction(condFunc);
+        const rolls = [];
+        for (let i = 0; i < numRolls; i++) {
+            let roll = expectNumber(rollFunc());
+            rolls.push(roll);
+            while (truthy(expectNumber(condFunc(roll)))) {
+                roll = expectNumber(rollFunc());
+                rolls.push(roll);
+            }
+        }
+        return rolls;
     }
 };
 
@@ -63,12 +106,17 @@ const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
 };
 
 const expectNumber = (input: ExpressionResult): number => {
-    if (typeof input !== 'number') throw new TypeError('Expected number');
+    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${typeof input}`);
     return input;
 };
 
 const expectArray = (input: ExpressionResult): ExpressionResult[] => {
-    if (typeof input !== 'object') throw new TypeError('Expected array');
+    if (typeof input !== 'object') throw new TypeError(`Expected array, got ${typeof input}`);
+    return input;
+};
+
+const expectFunction = (input: ExpressionResult): ExprFunc => {
+    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${typeof input}`);
     return input;
 };
 
@@ -113,9 +161,9 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
         case 'array': return expr.elements.map(elem => evaluate(elem, variables));
         case 'variable': {
             const varFromLookup = variables?.[expr.value];
-            if (varFromLookup) return varFromLookup;
+            if (typeof varFromLookup !== 'undefined') return varFromLookup;
             const builtin = builtins[expr.value];
-            if (builtin) return builtin;
+            if (typeof builtin !== 'undefined') return builtin;
             throw new Error(`Undefined variable: ${expr.value}`);
         }
         case 'binary': {
@@ -196,6 +244,19 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
             }
             if (typeof callee !== 'function') throw new TypeError('Expected function or number');
             return callee(...expr.arguments.map(arg => evaluate(arg, variables)));
+        }
+        case 'defun': {
+            return (...args: ExpressionResult[]): ExpressionResult => {
+                // console.log(args, expr.arguments);
+                if (args.length !== expr.arguments.length) {
+                    throw new TypeError(`Function expected ${expr.arguments.length} arguments, got ${args.length}`);
+                }
+                const combinedVars = Object.assign({}, variables);
+                for (let i = 0; i < args.length; i++) {
+                    combinedVars[expr.arguments[i].value] = args[i];
+                }
+                return evaluate(expr.body, combinedVars);
+            };
         }
     }
 };

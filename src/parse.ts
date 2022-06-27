@@ -65,6 +65,12 @@ type ArrayExpression = {
     elements: Expression[]
 };
 
+type FunctionDefinition = {
+    type: 'defun',
+    arguments: Variable[],
+    body: Expression
+};
+
 const tokenTypeToUnaryOp: Partial<Record<TokenType, UnaryOpType>> = {
     [TokenType.PLUS]: UnaryOpType.POSITIVE,
     [TokenType.MINUS]: UnaryOpType.NEGATIVE,
@@ -94,7 +100,14 @@ const tokenTypeToBinaryOp: Partial<Record<TokenType, BinaryOpType>> = {
     [TokenType.LOWEST]: BinaryOpType.LOWEST
 };
 
-type Expression = UnaryExpression | ArrayExpression | CallExpression | BinaryExpression | NumLiteral | Variable;
+type Expression =
+UnaryExpression |
+ArrayExpression |
+FunctionDefinition |
+CallExpression |
+BinaryExpression |
+NumLiteral |
+Variable;
 
 const unaryOpTypeToOpString: Record<UnaryOpType, string> = {
     [UnaryOpType.POSITIVE]: '+',
@@ -131,6 +144,7 @@ const sexpr = (expr: Expression): string => {
         case 'call': return `(call ${sexpr(expr.callee)} ${expr.arguments.map(arg => sexpr(arg)).join(' ')})`;
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'binary': return `(${binaryOpTypeToOpString[expr.op]} ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
+        case 'defun': return `(fun (${expr.arguments.map(elem => sexpr(elem)).join(' ')}) ${sexpr(expr.body)})`;
     }
 };
 
@@ -203,16 +217,35 @@ const parseName = (lexer: Lexer): Variable | null => {
 };
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
-    [TokenType.PLUS]: 17,
-    [TokenType.MINUS]: 17,
-    [TokenType.BANG]: 17,
-    [TokenType.SUM]: 17
+    [TokenType.PLUS]: 19,
+    [TokenType.MINUS]: 19,
+    [TokenType.BANG]: 19,
+    [TokenType.SUM]: 19,
+    [TokenType.AT]: 1
 };
 
-const parseUnary = (lexer: Lexer): UnaryExpression | null => {
+const parseUnary = (lexer: Lexer): UnaryExpression | FunctionDefinition | null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
+    if (next.type === TokenType.AT) {
+        lexer.next();
+        const argNames = [];
+        if (lexer.peek().type !== TokenType.ARROW) {
+            for (;;) {
+                const parsedArgName = parseName(lexer);
+                if (parsedArgName === null) throw new Error('Expected argument name');
+                argNames.push(parsedArgName);
+                if (lexer.peek().type === TokenType.ARROW) break;
+            }
+        }
+        if (lexer.next().type !== TokenType.ARROW) {
+            throw new Error('Expected arrow');
+        }
+        const body = parseExpression(lexer, rbp);
+        if (body === null) throw new Error('Expected expression');
+        return {type: 'defun', arguments: argNames, body};
+    }
     const opType = tokenTypeToUnaryOp[next.type];
     if (typeof opType !== 'number') throw new Error(`Missing unary op type for ${next.value}`);
     lexer.next();
@@ -222,26 +255,27 @@ const parseUnary = (lexer: Lexer): UnaryExpression | null => {
 };
 
 const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
-    [TokenType.LT]: [1, 2],
-    [TokenType.LE]: [1, 2],
-    [TokenType.GT]: [1, 2],
-    [TokenType.GE]: [1, 2],
-    [TokenType.EQ]: [3, 4],
-    [TokenType.NE]: [3, 4],
-    [TokenType.OR]: [5, 6],
-    [TokenType.HIGHEST]: [7, 8],
-    [TokenType.LOWEST]: [7, 8],
-    [TokenType.AND]: [9, 10],
-    [TokenType.PLUS]: [11, 12],
-    [TokenType.MINUS]: [11, 12],
-    [TokenType.MULTIPLY]: [13, 14],
-    [TokenType.DIVIDE]: [13, 14],
-    [TokenType.MODULO]: [13, 14],
-    [TokenType.POWER]: [15, 16],
-    [TokenType.PAREN_L]: [19, 20]
+    [TokenType.LT]: [3, 4],
+    [TokenType.LE]: [3, 4],
+    [TokenType.GT]: [3, 4],
+    [TokenType.GE]: [3, 4],
+    [TokenType.EQ]: [5, 6],
+    [TokenType.NE]: [5, 6],
+    [TokenType.OR]: [7, 8],
+    [TokenType.HIGHEST]: [9, 10],
+    [TokenType.LOWEST]: [9, 10],
+    [TokenType.AND]: [11, 12],
+    [TokenType.PLUS]: [13, 14],
+    [TokenType.MINUS]: [13, 14],
+    [TokenType.MULTIPLY]: [15, 16],
+    [TokenType.DIVIDE]: [15, 16],
+    [TokenType.MODULO]: [15, 16],
+    [TokenType.POWER]: [17, 18],
+    [TokenType.PAREN_L]: [23, 24]
 };
 
-const emptyBindingPower = [22, 21];
+// TODO there was probably a good reason to keep this lower than PAREN_L that I will discover tomorrow
+const emptyBindingPower = [21, 22];
 
 const parseExpression = (lexer: Lexer, minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);

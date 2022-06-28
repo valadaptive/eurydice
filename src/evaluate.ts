@@ -1,14 +1,15 @@
-import {BinaryOpType, UnaryOpType, Expression} from './parse';
+import {UnaryOpType, Expression} from './parse';
 
-type ExpressionResult = number | ExprFunc | ExpressionResult[];
+type ExprFunc = (arg: ExpressionResult) => ExpressionResult;
+type ExpressionResult = number | ExprFunc | ExpressionResult[] | undefined;
 
-type ExprFunc = (...args: ExpressionResult[]) => ExpressionResult;
+type BuiltinFunc = (...args: ExpressionResult[]) => ExpressionResult;
 
 const truthy = (value: number): boolean => value > 0;
 
 const MAX_REROLLS = 100;
 
-const builtins: Partial<Record<string, ExprFunc>> = {
+const builtins: Partial<Record<string, BuiltinFunc>> = {
     /** Round a number down. */
     floor: n => Math.floor(expectNumber(n)),
     /** Round a number up. */
@@ -64,14 +65,14 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     reduce: (arr: ExpressionResult, reducer: ExpressionResult, initialValue: ExpressionResult): ExpressionResult => {
         const reducerFunc = expectFunction(reducer);
         return expectArray(arr).reduce(
-            (prev: ExpressionResult, cur: ExpressionResult) => reducerFunc(prev, cur), initialValue);
+            (prev: ExpressionResult, cur: ExpressionResult) => expectFunction(reducerFunc(prev))(cur), initialValue);
     },
     /** Reroll a die (using the first argument function) until the second argument function returns a truthy value. */
     reroll: (rollFunc: ExpressionResult, condFunc: ExpressionResult): number => {
         rollFunc = expectFunction(rollFunc);
         condFunc = expectFunction(condFunc);
         for (let i = 0; i < MAX_REROLLS; i++) {
-            const roll = expectNumber(rollFunc());
+            const roll = expectNumber(rollFunc(undefined));
             const isGood = truthy(expectNumber(condFunc(roll)));
             if (isGood) return roll;
         }
@@ -87,15 +88,127 @@ const builtins: Partial<Record<string, ExprFunc>> = {
         condFunc = expectFunction(condFunc);
         const rolls = [];
         for (let i = 0; i < numRolls; i++) {
-            let roll = expectNumber(rollFunc());
+            let roll = expectNumber(rollFunc(undefined));
             rolls.push(roll);
             while (truthy(expectNumber(condFunc(roll)))) {
-                roll = expectNumber(rollFunc());
+                roll = expectNumber(rollFunc(undefined));
                 rolls.push(roll);
             }
         }
         return rolls;
+    },
+    /** Drop elements in the given array by passing them to a function that returns which elements should be dropped. */
+    drop: (drop: ExpressionResult, rolls: ExpressionResult): number[] => {
+        const rollsArr = expectArrayOfNumbers(rolls);
+        const dropFunc = expectFunction(drop);
+
+        // Count number of occurrences of each element to drop
+        const elementsToDrop = expectArrayOfNumbers(dropFunc(rollsArr));
+        const elemCounts = new Map<number, number>();
+        for (const elem of elementsToDrop) {
+            elemCounts.set(elem, (elemCounts.get(elem) ?? 0) + 1);
+        }
+
+        // Drop first n occurrences of those elements then start appending them into the results array
+        const results = [];
+        for (const roll of rollsArr) {
+            // Roll exists in count of elements to drop and is greater than 0
+            const rollCount = elemCounts.get(roll);
+            if (rollCount) {
+                elemCounts.set(roll, rollCount - 1);
+                continue;
+            }
+
+            // Roll is either not in map of elements to drop or its remaining drop count is 0
+            results.push(roll);
+        }
+
+        return results;
+    },
+    highest: (n: ExpressionResult): ExprFunc => {
+        const numToKeep = expectNumber(n);
+        return (rolls: ExpressionResult) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
+    },
+    lowest: (n: ExpressionResult): ExprFunc => {
+        const numToKeep = expectNumber(n);
+        return (rolls: ExpressionResult) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
+    },
+
+    '+': (lhs: ExpressionResult): ExprFunc => (rhs: ExpressionResult) => {
+        // Concatenate arrays
+        if (typeof lhs === 'object' && typeof rhs === 'object') {
+            return [...lhs, ...rhs];
+        }
+        // Append to array
+        if (typeof lhs === 'object' && typeof rhs === 'number') {
+            return [...lhs, rhs];
+        }
+        // Prepend to array
+        if (typeof lhs === 'number' && typeof rhs === 'object') {
+            return [lhs, ...rhs];
+        }
+        // Add numbers
+        if (typeof lhs === 'number' && typeof rhs === 'number') {
+            return lhs + rhs;
+        }
+        throw new TypeError('Expected number or array');
+    },
+    '-': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => lhsNum - expectNumber(rhs);
+    },
+    '*': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => lhsNum * expectNumber(rhs);
+    },
+    '/': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => lhsNum / expectNumber(rhs);
+    },
+    '%': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => {
+            const rhsNum = expectNumber(rhs);
+            return ((lhsNum % rhsNum) + rhsNum) % rhsNum;
+        };
+    },
+    '**': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Math.pow(lhsNum, expectNumber(rhs));
+    },
+    '<': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Number(lhsNum < expectNumber(rhs));
+    },
+    '<=': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Number(lhsNum <= expectNumber(rhs));
+    },
+    '>': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Number(lhsNum > expectNumber(rhs));
+    },
+    '>=': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Number(lhsNum >= expectNumber(rhs));
+    },
+    '=': (lhs: ExpressionResult): ExprFunc => (rhs: ExpressionResult) => Number(equals(lhs, rhs)),
+    '!=': (lhs: ExpressionResult): ExprFunc => (rhs: ExpressionResult) => Number(!equals(lhs, rhs)),
+    '|': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Math.max(lhsNum, expectNumber(rhs));
+    },
+    '&': (lhs: ExpressionResult): ExprFunc => {
+        const lhsNum = expectNumber(lhs);
+        return (rhs: ExpressionResult) => Math.min(lhsNum, expectNumber(rhs));
     }
+};
+
+// TODO: the performance here could probably be improved
+const curry = (f: BuiltinFunc): ExprFunc => {
+    const arity = f.length;
+    if (arity <= 1) return f as ExprFunc;
+    return (arg: ExpressionResult) => curry(f.bind(null, arg));
 };
 
 // Deep equality check (for functions, arrays, and numbers).
@@ -141,7 +254,7 @@ const mapN = (repeat: number, expr: Expression, variables?: Record<string, Expre
         // If it's a function, evaluate it.
         // TODO: is this desirable? Right now I've just done it to implement fudge dice.
         // This number-prefix stuff is already pretty automagic though.
-        if (typeof result === 'function') result = result();
+        if (typeof result === 'function') result = result(undefined);
         results.push(result);
     }
     return results;
@@ -169,65 +282,22 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
             const varFromLookup = variables?.[expr.value];
             if (typeof varFromLookup !== 'undefined') return varFromLookup;
             const builtin = builtins[expr.value];
-            if (typeof builtin !== 'undefined') return builtin;
+            if (typeof builtin !== 'undefined') return curry(builtin);
             throw new Error(`Undefined variable: ${expr.value}`);
         }
-        case 'binary': {
-            let lhs = evaluate(expr.lhs, variables);
-            if (expr.op === BinaryOpType.CONS) {
-                switch (typeof lhs) {
-                    // Eagerly evaluate right-hand side and pass into function
-                    case 'function': return lhs(evaluate(expr.rhs, variables));
-                    // Evaluate right-hand side n times
-                    case 'number': return mapN(lhs, expr.rhs, variables);
-                    case 'object': {
-                        // The only allowed objects are arrays currently. Index into the array.
-                        const rhs = Math.round(expectNumber(evaluate(expr.rhs, variables)));
-                        if (rhs < 0 || rhs >= lhs.length) throw new Error(`Array index ${rhs} out of bounds`);
-                        return lhs[rhs];
-                    }
+        case 'apply': {
+            const lhs = evaluate(expr.lhs, variables);
+            switch (typeof lhs) {
+                // Eagerly evaluate right-hand side and pass into function
+                case 'function': return lhs(evaluate(expr.rhs, variables));
+                // Evaluate right-hand side n times
+                case 'number': return mapN(lhs, expr.rhs, variables);
+                case 'object': {
+                    // The only allowed objects are arrays currently. Index into the array.
+                    const rhs = Math.round(expectNumber(evaluate(expr.rhs, variables)));
+                    if (rhs < 0 || rhs >= lhs.length) throw new Error(`Array index ${rhs} out of bounds`);
+                    return lhs[rhs];
                 }
-            }
-            let rhs = evaluate(expr.rhs, variables);
-            switch (expr.op) {
-                case BinaryOpType.ADD: {
-                    // Concatenate arrays
-                    if (typeof lhs === 'object' && typeof rhs === 'object') {
-                        return [...lhs, ...rhs];
-                    }
-                    // Append to array
-                    if (typeof lhs === 'object' && typeof rhs === 'number') {
-                        return [...lhs, rhs];
-                    }
-                    // Prepend to array
-                    if (typeof lhs === 'number' && typeof rhs === 'object') {
-                        return [lhs, ...rhs];
-                    }
-                    // Add numbers
-                    if (typeof lhs === 'number' && typeof rhs === 'number') {
-                        return lhs + rhs;
-                    }
-                    throw new TypeError('Expected number or array');
-                }
-                case BinaryOpType.EQ: return Number(equals(lhs, rhs));
-                case BinaryOpType.NE: return Number(!equals(lhs, rhs));
-                case BinaryOpType.HIGHEST: return keepHighest(expectArrayOfNumbers(lhs), expectNumber(rhs));
-                case BinaryOpType.LOWEST: return keepLowest(expectArrayOfNumbers(lhs), expectNumber(rhs));
-            }
-            lhs = expectNumber(lhs);
-            rhs = expectNumber(rhs);
-            switch (expr.op) {
-                case BinaryOpType.SUBTRACT: return lhs - rhs;
-                case BinaryOpType.MULTIPLY: return lhs * rhs;
-                case BinaryOpType.DIVIDE: return lhs / rhs;
-                case BinaryOpType.MODULO: return ((lhs % rhs) + rhs) % rhs;
-                case BinaryOpType.POWER: return Math.pow(lhs, rhs);
-                case BinaryOpType.LT: return Number(lhs < rhs);
-                case BinaryOpType.LE: return Number(lhs <= rhs);
-                case BinaryOpType.GT: return Number(lhs > rhs);
-                case BinaryOpType.GE: return Number(lhs >= rhs);
-                case BinaryOpType.OR: return Math.max(lhs, rhs);
-                case BinaryOpType.AND: return Math.min(lhs, rhs);
             }
             break;
         }
@@ -242,25 +312,9 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
             }
             break;
         }
-        case 'call': {
-            const callee = evaluate(expr.callee, variables);
-            if (typeof callee === 'number') {
-                if (expr.arguments.length !== 1) throw new Error('Cannot call a number like a function');
-                return mapN(callee, expr.arguments[0], variables);
-            }
-            if (typeof callee !== 'function') throw new TypeError('Expected function or number');
-            return callee(...expr.arguments.map(arg => evaluate(arg, variables)));
-        }
         case 'defun': {
-            return (...args: ExpressionResult[]): ExpressionResult => {
-                // console.log(args, expr.arguments);
-                if (args.length !== expr.arguments.length) {
-                    throw new TypeError(`Function expected ${expr.arguments.length} arguments, got ${args.length}`);
-                }
-                const combinedVars = Object.assign({}, variables);
-                for (let i = 0; i < args.length; i++) {
-                    combinedVars[expr.arguments[i].value] = args[i];
-                }
+            return (arg: ExpressionResult): ExpressionResult => {
+                const combinedVars = Object.assign({[expr.argument.value]: arg}, variables);
                 return evaluate(expr.body, combinedVars);
             };
         }

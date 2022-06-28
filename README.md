@@ -62,10 +62,26 @@ This allows the `&` operator to double as "minimum" and `|` to double as "maximu
 Sometimes, anonymous functions can come in handy. Take, for example, the built-in "reroll" function, which keeps rolling a die until a specified condition is true:
 
 ```
-> reroll(@ -> d20, @x -> x % 3 = 0)
+> reroll (@_ d20), (@x x % 3 = 0)
 
 9
 ```
+
+Functions in Eurydice take at most one argument, and multi-argument functions are done using partial application. For instance:
+
+```
+highest 2, 8d8
+```
+
+first evaluates `highest 2` and returns a function that, itself, returns the highest 2 elements in the array passed into it. Then that function is called with the results of evaluating `8d8`.
+
+This has some benefits. For instance, you can do things like:
+
+```
+drop highest 2, 8d8
+```
+This evaluates the `highest 2` argument (into a function) and then `8d8` (into an array of 8 numbers), passing both into the `drop` function. The `drop` function can then pass the latter into the former and then drop the highest 2 rolls.
+
 
 ## Trying it out
 

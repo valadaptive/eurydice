@@ -13,9 +13,6 @@ enum TokenType {
     EQ,
     NE,
 
-    HIGHEST,
-    LOWEST,
-
     BANG,
     OR,
     AND,
@@ -55,8 +52,6 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     '>=': TokenType.GE,
     '=': TokenType.EQ,
     '!=': TokenType.NE,
-    'hi': TokenType.HIGHEST,
-    'lo': TokenType.LOWEST,
     '!': TokenType.BANG,
     '|': TokenType.OR,
     '&': TokenType.AND,

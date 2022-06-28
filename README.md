@@ -48,7 +48,7 @@ There are also Boolean operators. They work on numbers as well--0 is false and 1
 [0, 1, 1, 0, 0]
 ```
 
-This allows the `&` operator to double as "maximum" and `|` to double as "minimum":
+This allows the `&` operator to double as "minimum" and `|` to double as "maximum":
 ```
 > 3 & 6
 

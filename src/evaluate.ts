@@ -1,7 +1,7 @@
 import {UnaryOpType, Expression} from './parse';
 
 type ExprFunc = (arg: ExpressionResult) => ExpressionResult;
-type ExpressionResult = number | ExprFunc | ExpressionResult[] | undefined;
+type ExpressionResult = number | ExprFunc | ExpressionResult[] | null;
 
 type BuiltinFunc = (...args: ExpressionResult[]) => ExpressionResult;
 
@@ -26,12 +26,12 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
      */
     d: (n: ExpressionResult): number => {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
-        if (typeof n === 'object') {
+        if (typeof n === 'object' && n !== null) {
             let currentArray: ExpressionResult[] = n;
             for (;;) {
                 const choice = currentArray[Math.floor(Math.random() * currentArray.length)];
                 if (typeof choice === 'number') return choice;
-                if (typeof choice === 'object') {
+                if (typeof choice === 'object' && choice !== null) {
                     currentArray = choice;
                     continue;
                 }
@@ -72,7 +72,7 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
         rollFunc = expectFunction(rollFunc);
         condFunc = expectFunction(condFunc);
         for (let i = 0; i < MAX_REROLLS; i++) {
-            const roll = expectNumber(rollFunc(undefined));
+            const roll = expectNumber(rollFunc(null));
             const isGood = truthy(expectNumber(condFunc(roll)));
             if (isGood) return roll;
         }
@@ -88,10 +88,10 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
         condFunc = expectFunction(condFunc);
         const rolls = [];
         for (let i = 0; i < numRolls; i++) {
-            let roll = expectNumber(rollFunc(undefined));
+            let roll = expectNumber(rollFunc(null));
             rolls.push(roll);
             while (truthy(expectNumber(condFunc(roll)))) {
-                roll = expectNumber(rollFunc(undefined));
+                roll = expectNumber(rollFunc(null));
                 rolls.push(roll);
             }
         }
@@ -136,15 +136,15 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
 
     '+': (lhs: ExpressionResult): ExprFunc => (rhs: ExpressionResult) => {
         // Concatenate arrays
-        if (typeof lhs === 'object' && typeof rhs === 'object') {
+        if (typeof lhs === 'object' && typeof rhs === 'object' && lhs !== null && rhs !== null) {
             return [...lhs, ...rhs];
         }
         // Append to array
-        if (typeof lhs === 'object' && typeof rhs === 'number') {
+        if (typeof lhs === 'object' && typeof rhs === 'number' && lhs !== null) {
             return [...lhs, rhs];
         }
         // Prepend to array
-        if (typeof lhs === 'number' && typeof rhs === 'object') {
+        if (typeof lhs === 'number' && typeof rhs === 'object' && rhs !== null) {
             return [lhs, ...rhs];
         }
         // Add numbers
@@ -214,7 +214,7 @@ const curry = (f: BuiltinFunc): ExprFunc => {
 // Deep equality check (for functions, arrays, and numbers).
 const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
     if (typeof a !== typeof b) return false;
-    if (typeof a === 'object' && typeof b === 'object') {
+    if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {
         if (a.length !== b.length) return false;
         for (let i = 0; i < a.length; i++) {
             if (!equals(a[i], b[i])) return false;
@@ -225,17 +225,17 @@ const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
 };
 
 const expectNumber = (input: ExpressionResult): number => {
-    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${typeof input}`);
+    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${String(input)}`);
     return input;
 };
 
 const expectArray = (input: ExpressionResult): ExpressionResult[] => {
-    if (typeof input !== 'object') throw new TypeError(`Expected array, got ${typeof input}`);
+    if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${String(input)}`);
     return input;
 };
 
 const expectFunction = (input: ExpressionResult): ExprFunc => {
-    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${typeof input}`);
+    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${String(input)}`);
     return input;
 };
 
@@ -254,7 +254,7 @@ const mapN = (repeat: number, expr: Expression, variables?: Record<string, Expre
         // If it's a function, evaluate it.
         // TODO: is this desirable? Right now I've just done it to implement fudge dice.
         // This number-prefix stuff is already pretty automagic though.
-        if (typeof result === 'function') result = result(undefined);
+        if (typeof result === 'function') result = result(null);
         results.push(result);
     }
     return results;
@@ -293,10 +293,10 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                 // Evaluate right-hand side n times
                 case 'number': return mapN(lhs, expr.rhs, variables);
                 case 'object': {
-                    // The only allowed objects are arrays currently. Index into the array.
+                    const arr = expectArray(lhs);
                     const rhs = Math.round(expectNumber(evaluate(expr.rhs, variables)));
-                    if (rhs < 0 || rhs >= lhs.length) throw new Error(`Array index ${rhs} out of bounds`);
-                    return lhs[rhs];
+                    if (rhs < 0 || rhs >= arr.length) throw new Error(`Array index ${rhs} out of bounds`);
+                    return arr[rhs];
                 }
             }
             break;

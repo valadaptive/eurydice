@@ -10,19 +10,6 @@ type Variable = {
     value: string
 };
 
-enum UnaryOpType {
-    NEGATIVE,
-    POSITIVE,
-    NOT,
-    SUM
-}
-
-type UnaryExpression = {
-    type: 'unary',
-    op: UnaryOpType,
-    rhs: Expression
-};
-
 type ApplyExpression = {
     type: 'apply',
     lhs: Expression,
@@ -38,13 +25,6 @@ type FunctionDefinition = {
     type: 'defun',
     argument: Variable,
     body: Expression
-};
-
-const tokenTypeToUnaryOp: Partial<Record<TokenType, UnaryOpType>> = {
-    [TokenType.PLUS]: UnaryOpType.POSITIVE,
-    [TokenType.MINUS]: UnaryOpType.NEGATIVE,
-    [TokenType.BANG]: UnaryOpType.NOT,
-    [TokenType.SUM]: UnaryOpType.SUM
 };
 
 const infixToBuiltin: Partial<Record<TokenType, string>> = {
@@ -67,25 +47,16 @@ const infixToBuiltin: Partial<Record<TokenType, string>> = {
 };
 
 type Expression =
-UnaryExpression |
 ArrayExpression |
 FunctionDefinition |
 ApplyExpression |
 NumLiteral |
 Variable;
 
-const unaryOpTypeToOpString: Record<UnaryOpType, string> = {
-    [UnaryOpType.POSITIVE]: '+',
-    [UnaryOpType.NEGATIVE]: '-',
-    [UnaryOpType.NOT]: '!',
-    [UnaryOpType.SUM]: '...'
-};
-
 const sexpr = (expr: Expression): string => {
     switch (expr.type) {
         case 'variable': return expr.value;
         case 'number': return expr.value.toString();
-        case 'unary': return `(${unaryOpTypeToOpString[expr.op]} ${sexpr(expr.rhs)})`;
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
         case 'defun': return `(fun ${sexpr(expr.argument)} ${sexpr(expr.body)})`;
@@ -161,28 +132,20 @@ const parseName = (lexer: Lexer): Variable | null => {
 };
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
-    [TokenType.SUM]: 19,
     [TokenType.AT]: 1
 };
 
-const parseUnary = (lexer: Lexer): UnaryExpression | FunctionDefinition | null => {
+const parseFunctionDefinition = (lexer: Lexer): FunctionDefinition | null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
-    if (next.type === TokenType.AT) {
-        lexer.next();
-        const argName = parseName(lexer);
-        if (argName === null) throw new Error('Expected argument name');
-        const body = parseExpression(lexer, rbp);
-        if (body === null) throw new Error('Expected expression');
-        return {type: 'defun', argument: argName, body};
-    }
-    const opType = tokenTypeToUnaryOp[next.type];
-    if (typeof opType !== 'number') throw new Error(`Missing unary op type for ${next.value}`);
+    if (next.type !== TokenType.AT) return null;
     lexer.next();
-    const rhs = parseExpression(lexer, rbp);
-    if (rhs === null) throw new Error('Expected expression');
-    return {type: 'unary', op: opType, rhs};
+    const argName = parseName(lexer);
+    if (argName === null) throw new Error('Expected argument name');
+    const body = parseExpression(lexer, rbp);
+    if (body === null) throw new Error('Expected expression');
+    return {type: 'defun', argument: argName, body};
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -236,7 +199,7 @@ const parseExpression = (
     let lhs: Expression | null = parseNumber(lexer);
     if (lhs === null) lhs = parseParenthesized(lexer);
     if (lhs === null) lhs = parseArray(lexer);
-    if (lhs === null) lhs = parseUnary(lexer);
+    if (lhs === null) lhs = parseFunctionDefinition(lexer);
     if (lhs === null) lhs = parseName(lexer);
     // TODO: re-enable? There's a lot of footgun potential since it binds the left side first but the expression appears
     // to the right of the unmatched infix operator.
@@ -296,6 +259,6 @@ const parseExpression = (
 
 export default parse;
 
-export {UnaryOpType, sexpr};
+export {sexpr};
 
-export type {NumLiteral, Variable, UnaryExpression, ApplyExpression, Expression};
+export type {NumLiteral, Variable, ApplyExpression, Expression};

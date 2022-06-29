@@ -1,4 +1,4 @@
-import {UnaryOpType, Expression} from './parse';
+import {Expression} from './parse';
 
 type ExprFunc = (arg: ExpressionResult) => ExpressionResult;
 type ExpressionResult = number | ExprFunc | ExpressionResult[] | null;
@@ -230,7 +230,9 @@ const builtins: Partial<Record<string, ExprFunc>> = {
     '&': (lhs: ExpressionResult): ExprFunc => {
         const lhsNum = expectNumber(lhs);
         return (rhs: ExpressionResult) => Math.min(lhsNum, expectNumber(rhs));
-    }
+    },
+    '!': checkParam(expectNumber, (rhs: number) => 1 - rhs),
+    '...': checkParam(expectArrayOfNumbers, (values: number[]) => values.reduce((prev, cur) => prev + cur, 0))
 };
 
 // Deep equality check (for functions, arrays, and numbers).
@@ -297,17 +299,6 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
                     if (rhs < 0 || rhs >= arr.length) throw new Error(`Array index ${rhs} out of bounds`);
                     return arr[rhs];
                 }
-            }
-            break;
-        }
-        case 'unary': {
-            const rhs = evaluate(expr.rhs, variables);
-            switch (expr.op) {
-                case UnaryOpType.POSITIVE: return expectNumber(rhs);
-                case UnaryOpType.NEGATIVE: return -expectNumber(rhs);
-                case UnaryOpType.NOT: return 1 - expectNumber(rhs);
-                case UnaryOpType.SUM: return expectArray(rhs)
-                    .reduce((prev: number, cur) => prev + expectNumber(cur), 0);
             }
             break;
         }

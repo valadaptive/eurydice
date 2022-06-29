@@ -78,7 +78,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<|<=|>|>=|=|!=|\||&|\(|\)|\[|\]|,|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)`, 'y');
+        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)`, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }

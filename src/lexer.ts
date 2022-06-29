@@ -24,8 +24,12 @@ enum TokenType {
 
     AT,
     ARROW,
+
     LET,
     IN,
+    IF,
+    THEN,
+    ELSE,
 
     NUMBER,
     NAME,
@@ -61,7 +65,10 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     ',': TokenType.COMMA,
     '@': TokenType.AT,
     'let': TokenType.LET,
-    'in': TokenType.IN
+    'in': TokenType.IN,
+    'if': TokenType.IF,
+    'then': TokenType.THEN,
+    'else': TokenType.ELSE
 };
 
 class Lexer {

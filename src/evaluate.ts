@@ -449,12 +449,12 @@ const evaluate = (expr: Expression): Value => {
                     }
                     variables[argName] = arg;
                     stack.push(expr.body);
-                    continuations.push(result => {
-                        if (isShadowed) {
+                    if (isShadowed) {
+                        continuations.push(result => {
                             variables[argName] = shadowed;
-                        }
-                        continuations.pop()!(result);
-                    });
+                            continuations.pop()!(result);
+                        });
+                    }
                 });
                 break;
             }
@@ -469,12 +469,19 @@ const evaluate = (expr: Expression): Value => {
                     }
                     variables[varName] = varValue;
                     stack.push(expr.body);
-                    continuations.push(result => {
-                        if (isShadowed) {
+                    if (isShadowed) {
+                        continuations.push(result => {
                             variables[varName] = shadowed;
-                        }
-                        continuations.pop()!(result);
-                    });
+                            continuations.pop()!(result);
+                        });
+                    }
+                });
+                break;
+            }
+            case 'if': {
+                stack.push(expr.condition);
+                continuations.push(condValue => {
+                    stack.push(truthy(expectNumber(condValue)) ? expr.trueBranch : expr.falseBranch);
                 });
             }
         }

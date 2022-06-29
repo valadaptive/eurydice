@@ -28,6 +28,13 @@ type LetExpression = {
     body: Expression
 };
 
+type IfExpression = {
+    type: 'if',
+    condition: Expression,
+    trueBranch: Expression,
+    falseBranch: Expression
+};
+
 type FunctionDefinition = {
     type: 'defun',
     argument: string,
@@ -56,6 +63,7 @@ const infixToBuiltin: Partial<Record<TokenType, string>> = {
 type Expression =
 ArrayExpression |
 LetExpression |
+IfExpression |
 FunctionDefinition |
 ApplyExpression |
 NumLiteral |
@@ -67,6 +75,7 @@ const sexpr = (expr: Expression): string => {
         case 'number': return expr.value.toString();
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'let': return `(let ${expr.variable} ${sexpr(expr.value)} in ${sexpr(expr.body)})`;
+        case 'if': return `(if ${sexpr(expr.condition)} then ${sexpr(expr.trueBranch)} else ${sexpr(expr.falseBranch)})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
         case 'defun': return `(fun ${expr.argument} ${sexpr(expr.body)})`;
     }
@@ -142,10 +151,11 @@ const parseName = (lexer: Lexer): Variable | null => {
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
     [TokenType.AT]: 1,
-    [TokenType.LET]: 1
+    [TokenType.LET]: 1,
+    [TokenType.IF]: 3
 };
 
-const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | null => {
+const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpression | null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
@@ -169,6 +179,18 @@ const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | null =>
             if (body === null) throw new Error('Expected expression');
             return {type: 'let', variable: varName, value, body: body};
         }
+        case TokenType.IF: {
+            lexer.next();
+            const condition = parseExpression(lexer, rbp);
+            if (condition === null) throw new Error('Expected expression');
+            if (lexer.next().type !== TokenType.THEN) throw new Error('Expected \'then\'');
+            const trueBranch = parseExpression(lexer, rbp);
+            if (trueBranch === null) throw new Error('Expected expression');
+            if (lexer.next().type !== TokenType.ELSE) throw new Error('Expected \'else\'');
+            const falseBranch = parseExpression(lexer, rbp);
+            if (falseBranch === null) throw new Error('Expected expression');
+            return {type: 'if', condition, trueBranch, falseBranch};
+        }
     }
     return null;
 };
@@ -188,13 +210,13 @@ const parseUnmatchedInfix = (lexer: Lexer): ApplyExpression | Variable | null =>
 };
 
 const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
-    [TokenType.LT]: [3, 4],
-    [TokenType.LE]: [3, 4],
-    [TokenType.GT]: [3, 4],
-    [TokenType.GE]: [3, 4],
-    [TokenType.EQ]: [5, 6],
-    [TokenType.NE]: [5, 6],
-    [TokenType.OR]: [7, 8],
+    [TokenType.LT]: [5, 6],
+    [TokenType.LE]: [5, 6],
+    [TokenType.GT]: [5, 6],
+    [TokenType.GE]: [5, 6],
+    [TokenType.EQ]: [7, 8],
+    [TokenType.NE]: [7, 8],
+    [TokenType.OR]: [9, 10],
     [TokenType.AND]: [11, 12],
     [TokenType.PLUS]: [13, 14],
     [TokenType.MINUS]: [13, 14],
@@ -238,6 +260,8 @@ const parseExpression = (
             op.type === TokenType.PAREN_R ||
             op.type === TokenType.BRACKET_R ||
             op.type === TokenType.IN ||
+            op.type === TokenType.THEN ||
+            op.type === TokenType.ELSE ||
             (op.type === TokenType.COMMA && mode === ExpressionMode.ARRAY_ELEMENT)
         ) break;
 

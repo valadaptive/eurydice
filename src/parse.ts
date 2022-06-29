@@ -35,6 +35,10 @@ type IfExpression = {
     falseBranch: Expression
 };
 
+type UnitExpression = {
+    type: 'unit'
+};
+
 type FunctionDefinition = {
     type: 'defun',
     argument: string,
@@ -64,6 +68,7 @@ type Expression =
 ArrayExpression |
 LetExpression |
 IfExpression |
+UnitExpression |
 FunctionDefinition |
 ApplyExpression |
 NumLiteral |
@@ -77,6 +82,7 @@ const sexpr = (expr: Expression): string => {
         case 'let': return `(let ${expr.variable} ${sexpr(expr.value)} in ${sexpr(expr.body)})`;
         case 'if': return `(if ${sexpr(expr.condition)} then ${sexpr(expr.trueBranch)} else ${sexpr(expr.falseBranch)})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
+        case 'unit': return `()`;
         case 'defun': return `(fun ${expr.argument} ${sexpr(expr.body)})`;
     }
 };
@@ -114,6 +120,9 @@ const parseParenthesized = (lexer: Lexer): Expression | null => {
     if (next.type !== TokenType.PAREN_L) return null;
     lexer.next();
     const inner = parseExpression(lexer, 0);
+    if (inner === null) {
+        return {type: 'unit'};
+    }
     if (lexer.peek().type !== TokenType.PAREN_R) {
         throw new Error(`Expected closing parenthesis`);
     }

@@ -364,6 +364,10 @@ const evaluate = (expr: Expression): Value => {
     while (stack.length > 0) {
         const expr = stack.pop()!;
         switch (expr.type) {
+            case 'unit': {
+                continuations.pop()!(null);
+                break;
+            }
             case 'number': {
                 continuations.pop()!(expr.value);
                 break;

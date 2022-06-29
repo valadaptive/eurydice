@@ -121,6 +121,7 @@ const parseParenthesized = (lexer: Lexer): Expression | null => {
     lexer.next();
     const inner = parseExpression(lexer, 0);
     if (inner === null) {
+        lexer.next();
         return {type: 'unit'};
     }
     if (lexer.peek().type !== TokenType.PAREN_R) {

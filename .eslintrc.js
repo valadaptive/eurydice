@@ -44,7 +44,7 @@ module.exports = {
     ],
     rules: {
         'no-prototype-builtins': 'off',
-        '@typescript-eslint/no-unused-vars': ['error', {'args': 'after-used', 'varsIgnorePattern': '__.*$'}],
+        '@typescript-eslint/no-unused-vars': ['error', {'args': 'after-used', 'argsIgnorePattern': '_.*$'}],
         'no-constant-condition': ['error', {'checkLoops': false}],
 
         'array-bracket-spacing': ['error', 'never'],

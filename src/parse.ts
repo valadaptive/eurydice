@@ -23,7 +23,7 @@ type ArrayExpression = {
 
 type FunctionDefinition = {
     type: 'defun',
-    argument: Variable,
+    argument: string,
     body: Expression
 };
 
@@ -59,7 +59,7 @@ const sexpr = (expr: Expression): string => {
         case 'number': return expr.value.toString();
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
-        case 'defun': return `(fun ${sexpr(expr.argument)} ${sexpr(expr.body)})`;
+        case 'defun': return `(fun ${expr.argument} ${sexpr(expr.body)})`;
     }
 };
 
@@ -141,8 +141,8 @@ const parseFunctionDefinition = (lexer: Lexer): FunctionDefinition | null => {
     if (!rbp) return null;
     if (next.type !== TokenType.AT) return null;
     lexer.next();
-    const argName = parseName(lexer);
-    if (argName === null) throw new Error('Expected argument name');
+    if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected argument name');
+    const argName = lexer.next().value;
     const body = parseExpression(lexer, rbp);
     if (body === null) throw new Error('Expected expression');
     return {type: 'defun', argument: argName, body};

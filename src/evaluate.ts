@@ -1,37 +1,37 @@
 import {Expression} from './parse';
 
-type ExprFunc = (arg: ExpressionResult) => void;
-type ExpressionResult = number | ExprFunc | ExpressionResult[] | null;
+type ExprFunc = (arg: Value) => void;
+type Value = number | ExprFunc | Value[] | null;
 
 const truthy = (value: number): boolean => value > 0;
 
 const MAX_REROLLS = 100;
 
-const expectAny = (input: ExpressionResult): ExpressionResult => input;
+const expectAny = (input: Value): Value => input;
 
-const expectNull = (input: ExpressionResult): null => {
+const expectNull = (input: Value): null => {
     if (input !== null) throw new TypeError(`Expected null, got ${String(input)}`);
     return input;
 };
 
-const expectNumber = (input: ExpressionResult): number => {
+const expectNumber = (input: Value): number => {
     if (typeof input !== 'number') throw new TypeError(`Expected number, got ${String(input)}`);
     return input;
 };
 
-const expectArray = (input: ExpressionResult): ExpressionResult[] => {
+const expectArray = (input: Value): Value[] => {
     if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${String(input)}`);
     return input;
 };
 
-const expectFunction = (input: ExpressionResult): ExprFunc => {
+const expectFunction = (input: Value): ExprFunc => {
     if (typeof input !== 'function') throw new TypeError(`Expected function, got ${String(input)}`);
     return input;
 };
 
-const expectArrayOf = <T extends ExpressionResult>(
-    elemTypeCheck: (input: ExpressionResult) => T): (input: ExpressionResult) => T[] => {
-    return (input: ExpressionResult) => {
+const expectArrayOf = <T extends Value>(
+    elemTypeCheck: (input: Value) => T): (input: Value) => T[] => {
+    return (input: Value) => {
         input = expectArray(input);
         for (const elem of input) {
             elemTypeCheck(elem);
@@ -42,32 +42,32 @@ const expectArrayOf = <T extends ExpressionResult>(
 
 const expectArrayOfNumbers = expectArrayOf(expectNumber);
 
-type Continuation = (result: ExpressionResult) => void;
+type Continuation = (result: Value) => void;
 type WrappedBuiltin = (stack: Expression[], continuations: Continuation[]) => ExprFunc;
-type ParamGuard<T extends ExpressionResult> = ((input: ExpressionResult) => T);
+type ParamGuard<T extends Value> = ((input: Value) => T);
 
-type WrappedArgs<Guards extends readonly ParamGuard<ExpressionResult>[]> = {
+type WrappedArgs<Guards extends readonly ParamGuard<Value>[]> = {
     [i in keyof Guards]: Guards[i] extends ParamGuard<infer T> ? T : never
 };
 
 // TODO: this doesn't require the argument to be inferred as a tuple
-type Wrapped<Guards extends readonly ParamGuard<ExpressionResult>[]> =
-    (...args: WrappedArgs<Guards>) => ExpressionResult;
+type Wrapped<Guards extends readonly ParamGuard<Value>[]> =
+    (...args: WrappedArgs<Guards>) => Value;
 
-type WrappedWithReport<Guards extends readonly ParamGuard<ExpressionResult>[]> =
-    (report: (value: ExpressionResult) => void,
-        call: (input: ExprFunc, arg: ExpressionResult, continuation: Continuation) => void,
+type WrappedWithReport<Guards extends readonly ParamGuard<Value>[]> =
+    (report: (value: Value) => void,
+        call: (input: ExprFunc, arg: Value, continuation: Continuation) => void,
         ...args: WrappedArgs<Guards>) => void;
 
-const wrapBuiltin = <G extends readonly ParamGuard<ExpressionResult>[]>(
+const wrapBuiltin = <G extends readonly ParamGuard<Value>[]>(
     builtin: Wrapped<G>, paramGuards: G): WrappedBuiltin => {
     return (stack, continuations) => {
         if (builtin.length !== paramGuards.length) throw new Error('Arity mismatch');
         if (builtin.length < 1) throw new Error(
             'Functions in Eurydice need at least one argument. ' +
             'Consider taking a null argument and discarding it.');
-        const curried = (func: Wrapped<G>, guardIdx: number): (arg: ExpressionResult) => void => {
-            const typedFunc = func as unknown as (...args: ExpressionResult[]) => ExpressionResult;
+        const curried = (func: Wrapped<G>, guardIdx: number): (arg: Value) => void => {
+            const typedFunc = func as unknown as (...args: Value[]) => Value;
             const guard = paramGuards[guardIdx];
             if (func.length <= 1) return arg => {
                 const result = typedFunc(guard(arg));
@@ -85,13 +85,13 @@ const wrapBuiltin = <G extends readonly ParamGuard<ExpressionResult>[]>(
 };
 
 // TODO: try to deduplicate with wrapBuiltin?
-const wrapDeferred = <G extends readonly ParamGuard<ExpressionResult>[]>(
+const wrapDeferred = <G extends readonly ParamGuard<Value>[]>(
     unboundBuiltin: WrappedWithReport<G>, paramGuards: G): WrappedBuiltin => {
     return (stack, continuations) => {
-        const report = (result: ExpressionResult): void => {
+        const report = (result: Value): void => {
             continuations.pop()!(result);
         };
-        const call = (input: ExprFunc, arg: ExpressionResult, continuation: Continuation): void => {
+        const call = (input: ExprFunc, arg: Value, continuation: Continuation): void => {
             input(arg);
             continuations.push(continuation);
         };
@@ -100,8 +100,8 @@ const wrapDeferred = <G extends readonly ParamGuard<ExpressionResult>[]>(
         if (builtin.length < 1) throw new Error(
             'Functions in Eurydice need at least one argument. ' +
             'Consider taking a null argument and discarding it.');
-        const curried = (func: Wrapped<G>, guardIdx: number): (arg: ExpressionResult) => void => {
-            const typedFunc = func as unknown as (...args: ExpressionResult[]) => void;
+        const curried = (func: Wrapped<G>, guardIdx: number): (arg: Value) => void => {
+            const typedFunc = func as unknown as (...args: Value[]) => void;
             const guard = paramGuards[guardIdx];
             if (func.length <= 1) return arg => {
                 typedFunc(guard(arg));
@@ -132,10 +132,10 @@ const builtins: Record<string, WrappedBuiltin> = {
      * or an array of face values, possibly nested.
      * For instance, a d[1, [2, 3]] has a 50% chance of rolling a 1, 25% of rolling a 2, and 25% of rolling a 3.
      */
-    d: wrapBuiltin((n: ExpressionResult): number => {
+    d: wrapBuiltin((n: Value): number => {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
         if (typeof n === 'object' && n !== null) {
-            let currentArray: ExpressionResult[] = n;
+            let currentArray: Value[] = n;
             for (;;) {
                 const choice = currentArray[Math.floor(Math.random() * currentArray.length)];
                 if (typeof choice === 'number') return choice;
@@ -151,14 +151,14 @@ const builtins: Record<string, WrappedBuiltin> = {
     /** Roll a FATE/FUDGE die (-1, 0, or 1). */
     dF: wrapBuiltin((_: null): number => [-1, 0, 1][Math.floor(Math.random() * 3)], [expectNull]),
     /** Sort an array from lowest to highest. */
-    sort: wrapBuiltin((arr: number[]): ExpressionResult[] => arr
+    sort: wrapBuiltin((arr: number[]): Value[] => arr
         .slice(0)
-        .sort((a: ExpressionResult, b: ExpressionResult) => (a as number) - (b as number)),
+        .sort((a: Value, b: Value) => (a as number) - (b as number)),
     [expectArrayOfNumbers]),
     /** Get the length of an array. */
-    len: wrapBuiltin((arr: ExpressionResult[]): number => arr.length, [expectArray]),
-    map: wrapDeferred((report, call, arr: ExpressionResult[], mapper: ExprFunc): void => {
-        const results: ExpressionResult[] = [];
+    len: wrapBuiltin((arr: Value[]): number => arr.length, [expectArray]),
+    map: wrapDeferred((report, call, arr: Value[], mapper: ExprFunc): void => {
+        const results: Value[] = [];
         let i = 0;
         const evalNext = (): void => {
             call(mapper, arr[i], mappedValue => {
@@ -178,7 +178,7 @@ const builtins: Record<string, WrappedBuiltin> = {
         }
     }, [expectArray, expectFunction] as const),
     reduce: wrapDeferred((
-        report, call, arr: ExpressionResult[], reducer: ExprFunc, initialValue: ExpressionResult): void => {
+        report, call, arr: Value[], reducer: ExprFunc, initialValue: Value): void => {
         let i = 0;
         let prev = initialValue;
         const evalNext = (): void => {
@@ -223,7 +223,7 @@ const builtins: Record<string, WrappedBuiltin> = {
      * Roll n dice, and every time one comes up truthy (according to the third argument), you can reroll it.
      * If that reroll comes up truthy again, keep rerolling. */
     explode: wrapDeferred((report, call, numRolls, roll, cond) => {
-        const rolls: ExpressionResult[] = [];
+        const rolls: Value[] = [];
         let i = 0;
         const evalNext = (): void => {
             call(roll, null, rollResult => {
@@ -272,14 +272,14 @@ const builtins: Record<string, WrappedBuiltin> = {
     }, [expectFunction, expectArrayOfNumbers] as const),
     highest: wrapBuiltin((n: number): ExprFunc => {
         const numToKeep = expectNumber(n);
-        return (rolls: ExpressionResult) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
+        return (rolls: Value) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
     }, [expectNumber]),
-    lowest: wrapBuiltin((n: ExpressionResult): ExprFunc => {
+    lowest: wrapBuiltin((n: Value): ExprFunc => {
         const numToKeep = expectNumber(n);
-        return (rolls: ExpressionResult) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
+        return (rolls: Value) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
     }, [expectNumber]),
 
-    '+': wrapBuiltin((lhs: ExpressionResult, rhs: ExpressionResult) => {
+    '+': wrapBuiltin((lhs: Value, rhs: Value) => {
         // Concatenate arrays
         if (typeof lhs === 'object' && typeof rhs === 'object' && lhs !== null && rhs !== null) {
             return [...lhs, ...rhs];
@@ -309,10 +309,10 @@ const builtins: Record<string, WrappedBuiltin> = {
     '<=': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs <= rhs), [expectNumber, expectNumber]),
     '>': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs > rhs), [expectNumber, expectNumber]),
     '>=': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs >= rhs), [expectNumber, expectNumber]),
-    '=': wrapBuiltin((lhs: ExpressionResult, rhs: ExpressionResult): number =>
+    '=': wrapBuiltin((lhs: Value, rhs: Value): number =>
         Number(equals(lhs, rhs)),
     [expectNumber, expectNumber]),
-    '!=': wrapBuiltin((lhs: ExpressionResult, rhs: ExpressionResult): number =>
+    '!=': wrapBuiltin((lhs: Value, rhs: Value): number =>
         Number(equals(lhs, rhs)),
     [expectNumber, expectNumber]),
     '|': wrapBuiltin((lhs: number, rhs: number): number => Math.max(lhs, rhs), [expectNumber, expectNumber]),
@@ -324,7 +324,7 @@ const builtins: Record<string, WrappedBuiltin> = {
 };
 
 // Deep equality check (for functions, arrays, and numbers).
-const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
+const equals = (a: Value, b: Value): boolean => {
     if (typeof a !== typeof b) return false;
     if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {
         if (a.length !== b.length) return false;
@@ -350,13 +350,13 @@ const keepLowest = (items: number[], n: number): number[] => {
         .slice(items.length - n);
 };
 
-const evaluate = (expr: Expression): ExpressionResult => {
-    let finalResult: ExpressionResult;
+const evaluate = (expr: Expression): Value => {
+    let finalResult: Value;
     const stack: Expression[] = [];
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
     }];
-    const variables = Object.create(null) as Partial<Record<string, ExpressionResult>>;
+    const variables = Object.create(null) as Partial<Record<string, Value>>;
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
         variables[builtinName] = wrapper(stack, continuations);
     }
@@ -369,7 +369,7 @@ const evaluate = (expr: Expression): ExpressionResult => {
                 break;
             }
             case 'array': {
-                const evaluatedElements: ExpressionResult[] = [];
+                const evaluatedElements: Value[] = [];
                 let elemIndex = 0;
                 const evalNext = (): void => {
                     stack.push(expr.elements[elemIndex]);
@@ -408,7 +408,7 @@ const evaluate = (expr: Expression): ExpressionResult => {
                         }
                         // Evaluate right-hand side n times
                         case 'number': {
-                            const evaluatedElements: ExpressionResult[] = [];
+                            const evaluatedElements: Value[] = [];
                             let numRemaining = lhs;
                             const evalNext = (): void => {
                                 stack.push(expr.rhs);
@@ -441,9 +441,9 @@ const evaluate = (expr: Expression): ExpressionResult => {
             }
             case 'defun': {
                 const argName = expr.argument;
-                continuations.pop()!((arg: ExpressionResult): void => {
+                continuations.pop()!((arg: Value): void => {
                     const isShadowed = argName in variables;
-                    let shadowed: ExpressionResult | undefined;
+                    let shadowed: Value | undefined;
                     if (isShadowed) {
                         shadowed = variables[argName];
                     }

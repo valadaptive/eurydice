@@ -21,6 +21,13 @@ type ArrayExpression = {
     elements: Expression[]
 };
 
+type LetExpression = {
+    type: 'let',
+    variable: string,
+    value: Expression,
+    body: Expression
+};
+
 type FunctionDefinition = {
     type: 'defun',
     argument: string,
@@ -48,6 +55,7 @@ const infixToBuiltin: Partial<Record<TokenType, string>> = {
 
 type Expression =
 ArrayExpression |
+LetExpression |
 FunctionDefinition |
 ApplyExpression |
 NumLiteral |
@@ -58,6 +66,7 @@ const sexpr = (expr: Expression): string => {
         case 'variable': return expr.value;
         case 'number': return expr.value.toString();
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
+        case 'let': return `(let ${expr.variable} ${sexpr(expr.value)} in ${sexpr(expr.body)})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
         case 'defun': return `(fun ${expr.argument} ${sexpr(expr.body)})`;
     }
@@ -132,20 +141,36 @@ const parseName = (lexer: Lexer): Variable | null => {
 };
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
-    [TokenType.AT]: 1
+    [TokenType.AT]: 1,
+    [TokenType.LET]: 1
 };
 
-const parseFunctionDefinition = (lexer: Lexer): FunctionDefinition | null => {
+const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
-    if (next.type !== TokenType.AT) return null;
-    lexer.next();
-    if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected argument name');
-    const argName = lexer.next().value;
-    const body = parseExpression(lexer, rbp);
-    if (body === null) throw new Error('Expected expression');
-    return {type: 'defun', argument: argName, body};
+    switch (next.type) {
+        case TokenType.AT: {
+            lexer.next();
+            if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected argument name');
+            const argName = lexer.next().value;
+            const body = parseExpression(lexer, rbp);
+            if (body === null) throw new Error('Expected expression');
+            return {type: 'defun', argument: argName, body};
+        }
+        case TokenType.LET: {
+            lexer.next();
+            if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected variable name');
+            const varName = lexer.next().value;
+            const value = parseExpression(lexer, rbp);
+            if (value === null) throw new Error('Expected expression');
+            if (lexer.next().type !== TokenType.IN) throw new Error('Expected \'in\'');
+            const body = parseExpression(lexer, rbp);
+            if (body === null) throw new Error('Expected expression');
+            return {type: 'let', variable: varName, value, body: body};
+        }
+    }
+    return null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -199,7 +224,7 @@ const parseExpression = (
     let lhs: Expression | null = parseNumber(lexer);
     if (lhs === null) lhs = parseParenthesized(lexer);
     if (lhs === null) lhs = parseArray(lexer);
-    if (lhs === null) lhs = parseFunctionDefinition(lexer);
+    if (lhs === null) lhs = parsePrefix(lexer);
     if (lhs === null) lhs = parseName(lexer);
     // TODO: re-enable? There's a lot of footgun potential since it binds the left side first but the expression appears
     // to the right of the unmatched infix operator.
@@ -212,6 +237,7 @@ const parseExpression = (
             op.type === TokenType.EOF ||
             op.type === TokenType.PAREN_R ||
             op.type === TokenType.BRACKET_R ||
+            op.type === TokenType.IN ||
             (op.type === TokenType.COMMA && mode === ExpressionMode.ARRAY_ELEMENT)
         ) break;
 
@@ -261,4 +287,4 @@ export default parse;
 
 export {sexpr};
 
-export type {NumLiteral, Variable, ApplyExpression, Expression};
+export type {NumLiteral, Variable, Expression};

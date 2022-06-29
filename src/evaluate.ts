@@ -456,6 +456,26 @@ const evaluate = (expr: Expression): Value => {
                         continuations.pop()!(result);
                     });
                 });
+                break;
+            }
+            case 'let': {
+                const varName = expr.variable;
+                stack.push(expr.value);
+                continuations.push(varValue => {
+                    const isShadowed = varName in variables;
+                    let shadowed: Value | undefined;
+                    if (isShadowed) {
+                        shadowed = variables[varName];
+                    }
+                    variables[varName] = varValue;
+                    stack.push(expr.body);
+                    continuations.push(result => {
+                        if (isShadowed) {
+                            variables[varName] = shadowed;
+                        }
+                        continuations.pop()!(result);
+                    });
+                });
             }
         }
     }

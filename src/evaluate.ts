@@ -387,7 +387,11 @@ const evaluate = (expr: Expression): Value => {
                         }
                     });
                 };
-                if (expr.elements.length) evalNext();
+                if (expr.elements.length) {
+                    evalNext();
+                } else {
+                    continuations.pop()!([]);
+                }
                 break;
             }
             case 'variable': {

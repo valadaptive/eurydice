@@ -304,7 +304,7 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
         }
         case 'defun': {
             return (arg: ExpressionResult): ExpressionResult => {
-                const combinedVars = Object.assign({[expr.argument.value]: arg}, variables);
+                const combinedVars = Object.assign({}, variables, {[expr.argument.value]: arg});
                 return evaluate(expr.body, combinedVars);
             };
         }

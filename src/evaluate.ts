@@ -3,13 +3,46 @@ import {UnaryOpType, Expression} from './parse';
 type ExprFunc = (arg: ExpressionResult) => ExpressionResult;
 type ExpressionResult = number | ExprFunc | ExpressionResult[] | null;
 
-type BuiltinFunc = (...args: ExpressionResult[]) => ExpressionResult;
-
 const truthy = (value: number): boolean => value > 0;
 
 const MAX_REROLLS = 100;
 
-const builtins: Partial<Record<string, BuiltinFunc>> = {
+const expectNumber = (input: ExpressionResult): number => {
+    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${String(input)}`);
+    return input;
+};
+
+const expectArray = (input: ExpressionResult): ExpressionResult[] => {
+    if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${String(input)}`);
+    return input;
+};
+
+const expectFunction = (input: ExpressionResult): ExprFunc => {
+    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${String(input)}`);
+    return input;
+};
+
+const expectArrayOf = <T extends ExpressionResult>(
+    elemTypeCheck: (input: ExpressionResult) => T): (input: ExpressionResult) => T[] => {
+    return (input: ExpressionResult) => {
+        input = expectArray(input);
+        for (const elem of input) {
+            elemTypeCheck(elem);
+        }
+        return input as T[];
+    };
+};
+
+const expectArrayOfNumbers = expectArrayOf(expectNumber);
+
+const checkParam = <T extends ExpressionResult>(
+    expectFunc: (input: ExpressionResult) => T, wrappedFunc: (arg: T) => ExpressionResult): ExprFunc => {
+    return (arg: ExpressionResult) => {
+        return wrappedFunc(expectFunc(arg));
+    };
+};
+
+const builtins: Partial<Record<string, ExprFunc>> = {
     /** Round a number down. */
     floor: n => Math.floor(expectNumber(n)),
     /** Round a number up. */
@@ -56,75 +89,71 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
         return expectArray(arr).length;
     },
     /** Map each array element over a function */
-    map: (arr: ExpressionResult, mapper: ExpressionResult) => {
-        arr = expectArray(arr);
-        const mapperFunc = expectFunction(mapper);
-        return arr.map(v => mapperFunc(v));
-    },
-    /** Run a "reducer" function over an array. */
-    reduce: (arr: ExpressionResult, reducer: ExpressionResult, initialValue: ExpressionResult): ExpressionResult => {
-        const reducerFunc = expectFunction(reducer);
-        return expectArray(arr).reduce(
-            (prev: ExpressionResult, cur: ExpressionResult) => expectFunction(reducerFunc(prev))(cur), initialValue);
-    },
+    map: checkParam(expectArray, (arr: ExpressionResult[]) =>
+        checkParam(expectFunction, (mapper: ExprFunc) =>
+            arr.map(v => mapper(v)))),
+    reduce: checkParam(expectArray, (arr: ExpressionResult[]) =>
+        checkParam(expectFunction, (reducer: ExprFunc) =>
+            (initialValue: ExpressionResult) => {
+                return arr.reduce(
+                    (prev: ExpressionResult, cur: ExpressionResult) =>
+                        expectFunction(reducer(prev))(cur), initialValue);
+            })),
     /** Reroll a die (using the first argument function) until the second argument function returns a truthy value. */
-    reroll: (rollFunc: ExpressionResult, condFunc: ExpressionResult): number => {
-        rollFunc = expectFunction(rollFunc);
-        condFunc = expectFunction(condFunc);
-        for (let i = 0; i < MAX_REROLLS; i++) {
-            const roll = expectNumber(rollFunc(null));
-            const isGood = truthy(expectNumber(condFunc(roll)));
-            if (isGood) return roll;
-        }
-        throw new Error('Maximum rerolls exceeded');
-    },
+    reroll: checkParam(expectFunction, (rollFunc: ExprFunc) =>
+        checkParam(expectFunction, (condFunc: ExprFunc) => {
+            for (let i = 0; i < MAX_REROLLS; i++) {
+                const roll = expectNumber(rollFunc(null));
+                const isGood = truthy(expectNumber(condFunc(roll)));
+                if (isGood) return roll;
+            }
+            throw new Error('Maximum rerolls exceeded');
+        })
+    ),
     /**
      * Exploding dice!
      * Roll n dice, and every time one comes up truthy (according to the third argument), you can reroll it.
      * If that reroll comes up truthy again, keep rerolling. */
-    explode: (numRolls: ExpressionResult, rollFunc: ExpressionResult, condFunc: ExpressionResult): number[] => {
-        numRolls = expectNumber(numRolls);
-        rollFunc = expectFunction(rollFunc);
-        condFunc = expectFunction(condFunc);
-        const rolls = [];
-        for (let i = 0; i < numRolls; i++) {
-            let roll = expectNumber(rollFunc(null));
-            rolls.push(roll);
-            while (truthy(expectNumber(condFunc(roll)))) {
-                roll = expectNumber(rollFunc(null));
-                rolls.push(roll);
-            }
-        }
-        return rolls;
-    },
+    explode: checkParam(expectNumber, (numRolls: number) =>
+        checkParam(expectFunction, (rollFunc: ExprFunc) =>
+            checkParam(expectFunction, (condFunc: ExprFunc) => {
+                const rolls = [];
+                for (let i = 0; i < numRolls; i++) {
+                    let roll = expectNumber(rollFunc(null));
+                    rolls.push(roll);
+                    while (truthy(expectNumber(condFunc(roll)))) {
+                        roll = expectNumber(rollFunc(null));
+                        rolls.push(roll);
+                    }
+                }
+                return rolls;
+            }))),
     /** Drop elements in the given array by passing them to a function that returns which elements should be dropped. */
-    drop: (drop: ExpressionResult, rolls: ExpressionResult): number[] => {
-        const rollsArr = expectArrayOfNumbers(rolls);
-        const dropFunc = expectFunction(drop);
-
-        // Count number of occurrences of each element to drop
-        const elementsToDrop = expectArrayOfNumbers(dropFunc(rollsArr));
-        const elemCounts = new Map<number, number>();
-        for (const elem of elementsToDrop) {
-            elemCounts.set(elem, (elemCounts.get(elem) ?? 0) + 1);
-        }
-
-        // Drop first n occurrences of those elements then start appending them into the results array
-        const results = [];
-        for (const roll of rollsArr) {
-            // Roll exists in count of elements to drop and is greater than 0
-            const rollCount = elemCounts.get(roll);
-            if (rollCount) {
-                elemCounts.set(roll, rollCount - 1);
-                continue;
+    drop: checkParam(expectFunction, (dropFunc: ExprFunc) =>
+        checkParam(expectArrayOfNumbers, (rollsArr: number[]) => {
+            // Count number of occurrences of each element to drop
+            const elementsToDrop = expectArrayOfNumbers(dropFunc(rollsArr));
+            const elemCounts = new Map<number, number>();
+            for (const elem of elementsToDrop) {
+                elemCounts.set(elem, (elemCounts.get(elem) ?? 0) + 1);
             }
 
-            // Roll is either not in map of elements to drop or its remaining drop count is 0
-            results.push(roll);
-        }
+            // Drop first n occurrences of those elements then start appending them into the results array
+            const results = [];
+            for (const roll of rollsArr) {
+                // Roll exists in count of elements to drop and is greater than 0
+                const rollCount = elemCounts.get(roll);
+                if (rollCount) {
+                    elemCounts.set(roll, rollCount - 1);
+                    continue;
+                }
 
-        return results;
-    },
+                // Roll is either not in map of elements to drop or its remaining drop count is 0
+                results.push(roll);
+            }
+
+            return results;
+        })),
     highest: (n: ExpressionResult): ExprFunc => {
         const numToKeep = expectNumber(n);
         return (rolls: ExpressionResult) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
@@ -204,13 +233,6 @@ const builtins: Partial<Record<string, BuiltinFunc>> = {
     }
 };
 
-// TODO: the performance here could probably be improved
-const curry = (f: BuiltinFunc): ExprFunc => {
-    const arity = f.length;
-    if (arity <= 1) return f as ExprFunc;
-    return (arg: ExpressionResult) => curry(f.bind(null, arg));
-};
-
 // Deep equality check (for functions, arrays, and numbers).
 const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
     if (typeof a !== typeof b) return false;
@@ -222,29 +244,6 @@ const equals = (a: ExpressionResult, b: ExpressionResult): boolean => {
         return true;
     }
     return a === b;
-};
-
-const expectNumber = (input: ExpressionResult): number => {
-    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${String(input)}`);
-    return input;
-};
-
-const expectArray = (input: ExpressionResult): ExpressionResult[] => {
-    if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${String(input)}`);
-    return input;
-};
-
-const expectFunction = (input: ExpressionResult): ExprFunc => {
-    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${String(input)}`);
-    return input;
-};
-
-const expectArrayOfNumbers = (input: ExpressionResult): number[] => {
-    input = expectArray(input);
-    for (const elem of input) {
-        expectNumber(elem);
-    }
-    return input as number[];
 };
 
 const mapN = (repeat: number, expr: Expression, variables?: Record<string, ExpressionResult>): ExpressionResult[] => {
@@ -282,7 +281,7 @@ const evaluate = (expr: Expression, variables?: Record<string, ExpressionResult>
             const varFromLookup = variables?.[expr.value];
             if (typeof varFromLookup !== 'undefined') return varFromLookup;
             const builtin = builtins[expr.value];
-            if (typeof builtin !== 'undefined') return curry(builtin);
+            if (typeof builtin !== 'undefined') return builtin;
             throw new Error(`Undefined variable: ${expr.value}`);
         }
         case 'apply': {

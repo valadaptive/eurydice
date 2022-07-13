@@ -26,6 +26,7 @@ enum TokenType {
     ARROW,
 
     LET,
+    LET_AND,
     IN,
     IF,
     THEN,
@@ -65,6 +66,7 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     ',': TokenType.COMMA,
     '@': TokenType.AT,
     'let': TokenType.LET,
+    'and': TokenType.LET_AND,
     'in': TokenType.IN,
     'if': TokenType.IF,
     'then': TokenType.THEN,

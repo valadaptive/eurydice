@@ -358,6 +358,8 @@ const keepLowest = (items: number[], n: number): number[] => {
         .slice(items.length - n);
 };
 
+const EMPTY_ENV = Object.create(null) as Partial<Record<string, Value>>;
+
 const evaluate = (expr: Expression): Value => {
     let finalResult: Value;
     const stack: StackFrame[] = [];
@@ -466,11 +468,13 @@ const evaluate = (expr: Expression): Value => {
             case 'defun': {
                 const argName = expr.argument;
                 continuations.pop()!((argValue: Value): void => {
+                    // Bind the function argument name to its evaluated value
+                    const newVars = Object.create(null) as Partial<Record<string, Value>>;
+                    newVars[argName] = argValue;
                     stack.push({
                         expr: expr.body,
-                        // Bind the function argument name to its evaluated value
                         environment: {
-                            variables: {[argName]: argValue},
+                            variables: newVars,
                             parent: environment
                         }
                     });
@@ -478,23 +482,30 @@ const evaluate = (expr: Expression): Value => {
                 break;
             }
             case 'let': {
-                const varName = expr.variable;
-                // Construct a new environment with the variable in it, currently uninitialized
+                const newVars = Object.create(null) as Partial<Record<string, Value>>;
+                // Construct a new environment which will eventually hold the new variables.
+                // We only define its variables once they're *all* evaluated, so e.g. "let x 5 and y x + 1" won't work.
+                // This is to avoid accidentally introducing sequential dependencies.
                 const newEnv: Environment = {
-                    variables: {[varName]: null},
+                    variables: EMPTY_ENV,
                     parent: environment
                 };
-                // Evaluate the value of the "let" expression
-                stack.push({expr: expr.value, environment: newEnv});
-                continuations.push(varValue => {
-                    // Once that's evaluated, backpatch the variable value to it
-                    newEnv.variables[varName] = varValue;
-                    // Evaluate the expression body
-                    stack.push({
-                        expr: expr.body,
-                        environment: newEnv
+                // Evaluate the values of the "let" expression
+                const evalNext = (i: number): void => {
+                    stack.push({expr: expr.variables[i].value, environment: newEnv});
+                    continuations.push(varValue => {
+                        // Add the variable's evaluated value to the environment's (eventual) new variables
+                        newVars[expr.variables[i].name] = varValue;
+                        if (i === expr.variables.length - 1) {
+                            // Fill in the variable values in the environment with what we've evaluated
+                            newEnv.variables = newVars;
+                            stack.push({expr: expr.body, environment: newEnv});
+                        } else {
+                            evalNext(i + 1);
+                        }
                     });
-                });
+                };
+                evalNext(0);
                 break;
             }
             case 'if': {

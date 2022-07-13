@@ -23,8 +23,10 @@ type ArrayExpression = {
 
 type LetExpression = {
     type: 'let',
-    variable: string,
-    value: Expression,
+    variables: {
+        name: string,
+        value: Expression
+    }[],
     body: Expression
 };
 
@@ -79,7 +81,7 @@ const sexpr = (expr: Expression): string => {
         case 'variable': return expr.value;
         case 'number': return expr.value.toString();
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
-        case 'let': return `(let ${expr.variable} ${sexpr(expr.value)} in ${sexpr(expr.body)})`;
+        case 'let': return `(let ${expr.variables.map(({name, value}) => `${name} ${sexpr(value)}`).join(' and ')} in ${sexpr(expr.body)})`;
         case 'if': return `(if ${sexpr(expr.condition)} then ${sexpr(expr.trueBranch)} else ${sexpr(expr.falseBranch)})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
         case 'unit': return `()`;
@@ -98,7 +100,7 @@ const parse = (input: string): Expression => {
         let newMessage = `Parse error: ${error.message}\n`;
         newMessage += input + '\n';
         const lexPosition = lexer.index();
-        newMessage += '-'.repeat(lexPosition - 1) + '^';
+        newMessage += '-'.repeat(Math.max(0, lexPosition - 1)) + '^';
         error.message = newMessage;
         throw error;
     }
@@ -180,14 +182,20 @@ const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpre
         }
         case TokenType.LET: {
             lexer.next();
-            if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected variable name');
-            const varName = lexer.next().value;
-            const value = parseExpression(lexer, rbp);
-            if (value === null) throw new Error('Expected expression');
+            const variables = [];
+            for (;;) {
+                if (lexer.peek().type !== TokenType.NAME) throw new Error('Expected variable name');
+                const varName = lexer.next().value;
+                const value = parseExpression(lexer, rbp);
+                if (value === null) throw new Error('Expected expression');
+                variables.push({name: varName, value});
+                if (lexer.peek().type !== TokenType.LET_AND) break;
+                lexer.next();
+            }
             if (lexer.next().type !== TokenType.IN) throw new Error('Expected \'in\'');
             const body = parseExpression(lexer, rbp);
             if (body === null) throw new Error('Expected expression');
-            return {type: 'let', variable: varName, value, body: body};
+            return {type: 'let', variables, body};
         }
         case TokenType.IF: {
             lexer.next();
@@ -272,6 +280,7 @@ const parseExpression = (
             op.type === TokenType.IN ||
             op.type === TokenType.THEN ||
             op.type === TokenType.ELSE ||
+            op.type === TokenType.LET_AND ||
             (op.type === TokenType.COMMA && mode === ExpressionMode.ARRAY_ELEMENT)
         ) break;
 

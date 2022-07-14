@@ -31,7 +31,7 @@ const formatError = <T extends Error>(error: T, source: string, start: number, e
         getLineIndices(source, start);
     let newMessage = `Line ${line + 1} column ${column}: ${error.message}\n`;
     newMessage += source.slice(lineStartIndex, lineEndIndex) + '\n';
-    newMessage += '-'.repeat(column - 1) + '^'.repeat(end - start);
+    newMessage += '-'.repeat(Math.max(0, column - 1)) + '^'.repeat(Math.max(1, end - start));
     error.message = newMessage;
     throw error;
 };

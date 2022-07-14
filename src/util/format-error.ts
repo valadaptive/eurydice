@@ -17,7 +17,7 @@ const getLineIndices = (str: string, index: number): {
         }
         column++;
     }
-    for (; i < str.length; i++) {
+    for (; i <= str.length; i++) {
         lineEndIndex = i;
         if (str[i] === '\n') {
             break;

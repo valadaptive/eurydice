@@ -278,12 +278,12 @@ const parseUnmatchedInfix = (lexer: Lexer): ApplyExpression | Variable | null =>
 };
 
 const infixBindingPower: Partial<Record<TokenType, [number, number]>> = {
-    [TokenType.LT]: [5, 6],
-    [TokenType.LE]: [5, 6],
-    [TokenType.GT]: [5, 6],
-    [TokenType.GE]: [5, 6],
-    [TokenType.EQ]: [7, 8],
-    [TokenType.NE]: [7, 8],
+    [TokenType.EQ]: [5, 6],
+    [TokenType.NE]: [5, 6],
+    [TokenType.LT]: [7, 8],
+    [TokenType.LE]: [7, 8],
+    [TokenType.GT]: [7, 8],
+    [TokenType.GE]: [7, 8],
     [TokenType.OR]: [9, 10],
     [TokenType.AND]: [11, 12],
     [TokenType.PLUS]: [13, 14],

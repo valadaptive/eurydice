@@ -124,10 +124,6 @@ class Lexer {
         this._nextToken = this._advance();
         return curToken;
     }
-
-    index (): number {
-        return this._regex.lastIndex;
-    }
 }
 
 export {Token, TokenType};

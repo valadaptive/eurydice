@@ -7,7 +7,7 @@
 		"allowSyntheticDefaultImports": true,
 		"moduleResolution": "node",
 		"sourceMap": true,
-		"types": ["node"],
+		"types": ["node", "mocha"],
 		"strictNullChecks": true,
 		"resolveJsonModule": true,
 		"strict": true,

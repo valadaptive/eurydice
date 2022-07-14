@@ -4,7 +4,8 @@
   "description": "Dice-rolling engine",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "coverage": "nyc npm run test",
+    "test": "mocha -u tdd -r ts-node/register test/**",
     "build": "tsc",
     "interactive": "ts-node --transpile-only src/interactive.ts",
     "eval": "ts-node --transpile-only src/index.ts"
@@ -16,10 +17,15 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chai": "^4.3.1",
+    "@types/mocha": "^9.1.1",
     "@types/node": "^18.0.0",
     "@typescript-eslint/eslint-plugin": "^5.29.0",
     "@typescript-eslint/parser": "^5.29.0",
+    "chai": "^4.3.6",
     "eslint": "^8.18.0",
+    "mocha": "^10.0.0",
+    "nyc": "^15.1.0",
     "ts-node": "^10.8.1",
     "typescript": "^4.7.4"
   }

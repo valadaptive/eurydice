@@ -286,6 +286,8 @@ const builtins: Record<string, WrappedBuiltin> = {
         const numToKeep = expectNumber(n);
         return (rolls: Value) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
     }, [expectNumber]),
+    min: wrapBuiltin((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
+    max: wrapBuiltin((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
 
     '+': wrapBuiltin((lhs: Value, rhs: Value) => {
         // Concatenate arrays

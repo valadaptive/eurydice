@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import parse, {sexpr} from './parse';
-import evaluate from './evaluate';
+import evaluate, {EvaluationError} from './evaluate';
+import formatError from './util/format-error';
 import {readFileSync} from 'fs';
 
 const parseArgs = (args: string[]): {positional: string[], named: Partial<Record<string, string>>} => {
@@ -21,5 +22,11 @@ const parseArgs = (args: string[]): {positional: string[], named: Partial<Record
 const args = parseArgs(process.argv.slice(2));
 const input = ('evaluate' in args.named) ? args.named.evaluate! : readFileSync(args.positional[0], {encoding: 'utf-8'});
 
-console.log(sexpr(parse(input)));
-console.log(evaluate(parse(input)));
+const parsedInput = parse(input);
+console.log(sexpr(parsedInput));
+try {
+    console.log(evaluate(parsedInput));
+} catch (err) {
+    if (err instanceof EvaluationError) throw formatError(err as Error, input, err.expr.start, err.expr.end);
+    throw err;
+}

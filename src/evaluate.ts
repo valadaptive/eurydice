@@ -51,7 +51,7 @@ type StackFrame = {
     environment: Environment
 };
 type Continuation = (result: Value) => void;
-type WrappedBuiltin = (stack: StackFrame[], continuations: Continuation[]) => ExprFunc;
+type WrappedBuiltin = (continuations: Continuation[]) => ExprFunc;
 type ParamGuard<T extends Value> = ((input: Value) => T);
 
 type WrappedArgs<Guards extends readonly ParamGuard<Value>[]> = {
@@ -69,7 +69,7 @@ type WrappedWithReport<Guards extends readonly ParamGuard<Value>[]> =
 
 const wrapBuiltin = <G extends readonly ParamGuard<Value>[]>(
     builtin: Wrapped<G>, paramGuards: G): WrappedBuiltin => {
-    return (stack, continuations) => {
+    return continuations => {
         if (builtin.length !== paramGuards.length) throw new Error('Arity mismatch');
         if (builtin.length < 1) throw new Error(
             'Functions in Eurydice need at least one argument. ' +
@@ -95,7 +95,7 @@ const wrapBuiltin = <G extends readonly ParamGuard<Value>[]>(
 // TODO: try to deduplicate with wrapBuiltin?
 const wrapDeferred = <G extends readonly ParamGuard<Value>[]>(
     unboundBuiltin: WrappedWithReport<G>, paramGuards: G): WrappedBuiltin => {
-    return (stack, continuations) => {
+    return continuations => {
         const report = (result: Value): void => {
             continuations.pop()!(result);
         };
@@ -360,9 +360,17 @@ const keepLowest = (items: number[], n: number): number[] => {
 
 const EMPTY_ENV = Object.create(null) as Partial<Record<string, Value>>;
 
+class EvaluationError extends Error {
+    expr: Expression;
+
+    constructor (message: string, expr: Expression) {
+        super(message);
+        this.expr = expr;
+    }
+}
+
 const evaluate = (expr: Expression): Value => {
     let finalResult: Value;
-    const stack: StackFrame[] = [];
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
     }];
@@ -371,155 +379,163 @@ const evaluate = (expr: Expression): Value => {
         parent: null
     };
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
-        rootEnvironment.variables[builtinName] = wrapper(stack, continuations);
+        rootEnvironment.variables[builtinName] = wrapper(continuations);
     }
-    stack.push({expr, environment: rootEnvironment});
-    while (stack.length > 0) {
-        const {expr, environment} = stack.pop()!;
-        switch (expr.type) {
-            case 'unit': {
-                continuations.pop()!(null);
-                break;
-            }
-            case 'number': {
-                continuations.pop()!(expr.value);
-                break;
-            }
-            case 'array': {
-                const evaluatedElements: Value[] = [];
-                let elemIndex = 0;
-                const evalNext = (): void => {
-                    stack.push({expr: expr.elements[elemIndex], environment});
-                    continuations.push(elem => {
-                        evaluatedElements.push(elem);
-                        elemIndex++;
-                        if (elemIndex === expr.elements.length) {
-                            continuations.pop()!(evaluatedElements);
-                        } else {
-                            evalNext();
-                        }
-                    });
-                };
-                if (expr.elements.length) {
-                    evalNext();
-                } else {
-                    continuations.pop()!([]);
+    let next: StackFrame | null = {expr, environment: rootEnvironment};
+    let currentExpr: Expression = expr;
+    try {
+        while (next !== null) {
+            const {expr, environment}: StackFrame = next;
+            next = null;
+            currentExpr = expr;
+            switch (expr.type) {
+                case 'unit': {
+                    continuations.pop()!(null);
+                    break;
                 }
-                break;
-            }
-            case 'variable': {
-                let currentEnv: Environment | null = environment;
-                let varValue;
-                while (typeof varValue === 'undefined' && currentEnv !== null) {
-                    varValue = currentEnv.variables[expr.value];
-                    currentEnv = currentEnv.parent;
+                case 'number': {
+                    continuations.pop()!(expr.value);
+                    break;
                 }
-                if (typeof varValue === 'undefined') {
-                    throw new Error(`Undefined variable: ${expr.value}`);
-                }
-                continuations.pop()!(varValue);
-                break;
-            }
-            case 'apply': {
-                stack.push({expr: expr.lhs, environment});
-                continuations.push(lhs => {
-                    switch (typeof lhs) {
-                        // Eagerly evaluate right-hand side and pass into function
-                        case 'function': {
-                            stack.push({expr: expr.rhs, environment});
-                            continuations.push(rhs => {
-                                lhs(rhs);
-                            });
-                            break;
-                        }
-                        // Evaluate right-hand side n times
-                        case 'number': {
-                            const evaluatedElements: Value[] = [];
-                            let numRemaining = lhs;
-                            const evalNext = (): void => {
-                                stack.push({expr: expr.rhs, environment});
-                                continuations.push(elem => {
-                                    evaluatedElements.push(elem);
-                                    numRemaining--;
-                                    if (numRemaining === 0) {
-                                        continuations.pop()!(evaluatedElements);
-                                    } else {
-                                        evalNext();
-                                    }
-                                });
-                            };
-                            if (numRemaining > 0) evalNext();
-                            break;
-                        }
-                        case 'object': {
-                            const arr = expectArray(lhs);
-
-                            stack.push({expr: expr.rhs, environment});
-                            continuations.push(rhs => {
-                                rhs = Math.round(expectNumber(rhs));
-                                if (rhs < 0 || rhs >= arr.length) throw new Error(`Array index ${rhs} out of bounds`);
-                                continuations.pop()!(arr[rhs]);
-                            });
-                        }
+                case 'array': {
+                    const evaluatedElements: Value[] = [];
+                    let elemIndex = 0;
+                    const evalNext = (): void => {
+                        next = {expr: expr.elements[elemIndex], environment};
+                        continuations.push(elem => {
+                            evaluatedElements.push(elem);
+                            elemIndex++;
+                            if (elemIndex === expr.elements.length) {
+                                continuations.pop()!(evaluatedElements);
+                            } else {
+                                evalNext();
+                            }
+                        });
+                    };
+                    if (expr.elements.length) {
+                        evalNext();
+                    } else {
+                        continuations.pop()!([]);
                     }
-                });
-                break;
-            }
-            case 'defun': {
-                const argName = expr.argument;
-                continuations.pop()!((argValue: Value): void => {
-                    // Bind the function argument name to its evaluated value
+                    break;
+                }
+                case 'variable': {
+                    let currentEnv: Environment | null = environment;
+                    let varValue;
+                    while (typeof varValue === 'undefined' && currentEnv !== null) {
+                        varValue = currentEnv.variables[expr.value];
+                        currentEnv = currentEnv.parent;
+                    }
+                    if (typeof varValue === 'undefined') {
+                        throw new Error(`Undefined variable: ${expr.value}`);
+                    }
+                    continuations.pop()!(varValue);
+                    break;
+                }
+                case 'apply': {
+                    next = {expr: expr.lhs, environment};
+                    continuations.push(lhs => {
+                        switch (typeof lhs) {
+                            // Eagerly evaluate right-hand side and pass into function
+                            case 'function': {
+                                next = {expr: expr.rhs, environment};
+                                continuations.push(rhs => {
+                                    lhs(rhs);
+                                });
+                                break;
+                            }
+                            // Evaluate right-hand side n times
+                            case 'number': {
+                                const evaluatedElements: Value[] = [];
+                                let numRemaining = lhs;
+                                const evalNext = (): void => {
+                                    next = {expr: expr.rhs, environment};
+                                    continuations.push(elem => {
+                                        evaluatedElements.push(elem);
+                                        numRemaining--;
+                                        if (numRemaining === 0) {
+                                            continuations.pop()!(evaluatedElements);
+                                        } else {
+                                            evalNext();
+                                        }
+                                    });
+                                };
+                                if (numRemaining > 0) evalNext();
+                                break;
+                            }
+                            case 'object': {
+                                const arr = expectArray(lhs);
+
+                                next = {expr: expr.rhs, environment};
+                                continuations.push(rhs => {
+                                    rhs = Math.round(expectNumber(rhs));
+                                    if (rhs < 0 || rhs >= arr.length) throw new Error(`Array index ${rhs} out of bounds`);
+                                    continuations.pop()!(arr[rhs]);
+                                });
+                            }
+                        }
+                    });
+                    break;
+                }
+                case 'defun': {
+                    const argName = expr.argument;
+                    continuations.pop()!((argValue: Value): void => {
+                        // Bind the function argument name to its evaluated value
+                        const newVars = Object.create(null) as Partial<Record<string, Value>>;
+                        newVars[argName] = argValue;
+                        next = {
+                            expr: expr.body,
+                            environment: {
+                                variables: newVars,
+                                parent: environment
+                            }
+                        };
+                    });
+                    break;
+                }
+                case 'let': {
                     const newVars = Object.create(null) as Partial<Record<string, Value>>;
-                    newVars[argName] = argValue;
-                    stack.push({
-                        expr: expr.body,
-                        environment: {
-                            variables: newVars,
-                            parent: environment
-                        }
+                    // Construct a new environment which will eventually hold the new variables.
+                    // We only define its variables once they're all evaluated, so e.g "let x 5 and y x + 1" won't work.
+                    // This is to avoid accidentally introducing sequential dependencies.
+                    const newEnv: Environment = {
+                        variables: EMPTY_ENV,
+                        parent: environment
+                    };
+                    // Evaluate the values of the "let" expression
+                    const evalNext = (i: number): void => {
+                        next = {expr: expr.variables[i].value, environment: newEnv};
+                        continuations.push(varValue => {
+                            // Add the variable's evaluated value to the environment's (eventual) new variables
+                            newVars[expr.variables[i].name] = varValue;
+                            if (i === expr.variables.length - 1) {
+                                // Fill in the variable values in the environment with what we've evaluated
+                                newEnv.variables = newVars;
+                                next = {expr: expr.body, environment: newEnv};
+                            } else {
+                                evalNext(i + 1);
+                            }
+                        });
+                    };
+                    evalNext(0);
+                    break;
+                }
+                case 'if': {
+                    next = {expr: expr.condition, environment};
+                    continuations.push(condValue => {
+                        next = {
+                            expr: truthy(expectNumber(condValue)) ? expr.trueBranch : expr.falseBranch,
+                            environment
+                        };
                     });
-                });
-                break;
-            }
-            case 'let': {
-                const newVars = Object.create(null) as Partial<Record<string, Value>>;
-                // Construct a new environment which will eventually hold the new variables.
-                // We only define its variables once they're *all* evaluated, so e.g. "let x 5 and y x + 1" won't work.
-                // This is to avoid accidentally introducing sequential dependencies.
-                const newEnv: Environment = {
-                    variables: EMPTY_ENV,
-                    parent: environment
-                };
-                // Evaluate the values of the "let" expression
-                const evalNext = (i: number): void => {
-                    stack.push({expr: expr.variables[i].value, environment: newEnv});
-                    continuations.push(varValue => {
-                        // Add the variable's evaluated value to the environment's (eventual) new variables
-                        newVars[expr.variables[i].name] = varValue;
-                        if (i === expr.variables.length - 1) {
-                            // Fill in the variable values in the environment with what we've evaluated
-                            newEnv.variables = newVars;
-                            stack.push({expr: expr.body, environment: newEnv});
-                        } else {
-                            evalNext(i + 1);
-                        }
-                    });
-                };
-                evalNext(0);
-                break;
-            }
-            case 'if': {
-                stack.push({expr: expr.condition, environment});
-                continuations.push(condValue => {
-                    stack.push({
-                        expr: truthy(expectNumber(condValue)) ? expr.trueBranch : expr.falseBranch,
-                        environment
-                    });
-                });
+                }
             }
         }
+    } catch (err) {
+        throw new EvaluationError((err as Error).message, currentExpr);
     }
     return finalResult!;
 };
 
 export default evaluate;
+export {EvaluationError};

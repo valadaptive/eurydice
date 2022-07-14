@@ -103,15 +103,15 @@ module.exports = {
         'space-before-function-paren': ['error', 'always'],
         'space-in-parens': ['error'],
         'space-infix-ops': ['error'],
-        'space-unary-ops': ['error'],
-
-        'react/react-in-jsx-scope': 'off',
-        'react/prop-types': 'off'
+        'space-unary-ops': ['error']
     },
     parserOptions: {
         'ecmaVersion': 11,
         'sourceType': 'module',
         'parser': '@typescript-eslint/parser',
         'tsconfigRootDir': __dirname
-    }
+    },
+    ignorePatterns: [
+        'build'
+    ]
 };

@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  setup:
+  build_and_test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,21 +19,5 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-
-  build:
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x]
-    steps:
       - run: npm run build
-
-  test:
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x]
-    steps:
       - run: npm test

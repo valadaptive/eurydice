@@ -2,6 +2,7 @@ import {Expression} from './parse';
 
 type ExprFunc = (arg: Value) => void;
 type Value = number | ExprFunc | Value[] | null;
+type EnvValue = number | WrappedFunction | Value[] | null;
 
 const truthy = (value: number): boolean => value > 0;
 
@@ -51,7 +52,7 @@ type StackFrame = {
     environment: Environment
 };
 type Continuation = (result: Value) => void;
-type WrappedBuiltin = (continuations: Continuation[]) => ExprFunc;
+type WrappedFunction = (continuations: Continuation[]) => ExprFunc;
 type ParamGuard<T extends Value> = ((input: Value) => T);
 
 type WrappedArgs<Guards extends readonly ParamGuard<Value>[]> = {
@@ -67,8 +68,8 @@ type WrappedWithReport<Guards extends readonly ParamGuard<Value>[]> =
         call: (input: ExprFunc, arg: Value, continuation: Continuation) => void,
         ...args: WrappedArgs<Guards>) => void;
 
-const wrapBuiltin = <G extends readonly ParamGuard<Value>[]>(
-    builtin: Wrapped<G>, paramGuards: G): WrappedBuiltin => {
+const wrapFunction = <G extends readonly ParamGuard<Value>[]>(
+    builtin: Wrapped<G>, paramGuards: G): WrappedFunction => {
     return continuations => {
         if (builtin.length !== paramGuards.length) throw new Error('Arity mismatch');
         if (builtin.length < 1) throw new Error(
@@ -94,7 +95,7 @@ const wrapBuiltin = <G extends readonly ParamGuard<Value>[]>(
 
 // TODO: try to deduplicate with wrapBuiltin?
 const wrapDeferred = <G extends readonly ParamGuard<Value>[]>(
-    unboundBuiltin: WrappedWithReport<G>, paramGuards: G): WrappedBuiltin => {
+    unboundBuiltin: WrappedWithReport<G>, paramGuards: G): WrappedFunction => {
     return continuations => {
         const report = (result: Value): void => {
             continuations.pop()!(result);
@@ -125,22 +126,22 @@ const wrapDeferred = <G extends readonly ParamGuard<Value>[]>(
     };
 };
 
-const builtins: Record<string, WrappedBuiltin> = {
+const builtins: Record<string, WrappedFunction> = {
     /** Round a number down. */
-    floor: wrapBuiltin(Math.floor, [expectNumber]),
+    floor: wrapFunction(Math.floor, [expectNumber]),
     /** Round a number up. */
-    ceil: wrapBuiltin(Math.ceil, [expectNumber]),
+    ceil: wrapFunction(Math.ceil, [expectNumber]),
     /** Round a number to the nearest whole number. */
-    round: wrapBuiltin(Math.round, [expectNumber]),
+    round: wrapFunction(Math.round, [expectNumber]),
     /** Take the absolute value of a number. */
-    abs: wrapBuiltin(Math.abs, [expectNumber]),
+    abs: wrapFunction(Math.abs, [expectNumber]),
     /**
      * Roll a die.
      * You can specify a number (to roll a die from 1 to that number inclusive),
      * or an array of face values, possibly nested.
      * For instance, a d[1, [2, 3]] has a 50% chance of rolling a 1, 25% of rolling a 2, and 25% of rolling a 3.
      */
-    d: wrapBuiltin((n: Value): number => {
+    d: wrapFunction((n: Value): number => {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
         if (typeof n === 'object' && n !== null) {
             let currentArray: Value[] = n;
@@ -157,14 +158,14 @@ const builtins: Record<string, WrappedBuiltin> = {
         throw new Error('Expected number or array of numbers');
     }, [expectAny]),
     /** Roll a FATE/FUDGE die (-1, 0, or 1). */
-    dF: wrapBuiltin((_: null): number => [-1, 0, 1][Math.floor(Math.random() * 3)], [expectNull]),
+    dF: wrapFunction((_: null): number => [-1, 0, 1][Math.floor(Math.random() * 3)], [expectNull]),
     /** Sort an array from lowest to highest. */
-    sort: wrapBuiltin((arr: number[]): Value[] => arr
+    sort: wrapFunction((arr: number[]): Value[] => arr
         .slice(0)
         .sort((a: Value, b: Value) => (a as number) - (b as number)),
     [expectArrayOfNumbers]),
     /** Get the length of an array. */
-    len: wrapBuiltin((arr: Value[]): number => arr.length, [expectArray]),
+    len: wrapFunction((arr: Value[]): number => arr.length, [expectArray]),
     map: wrapDeferred((report, call, arr: Value[], mapper: ExprFunc): void => {
         const results: Value[] = [];
         let i = 0;
@@ -278,18 +279,18 @@ const builtins: Record<string, WrappedBuiltin> = {
             report(results);
         });
     }, [expectFunction, expectArrayOfNumbers] as const),
-    highest: wrapBuiltin((n: number): ExprFunc => {
+    highest: wrapFunction((n: number): ExprFunc => {
         const numToKeep = expectNumber(n);
         return (rolls: Value) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
     }, [expectNumber]),
-    lowest: wrapBuiltin((n: Value): ExprFunc => {
+    lowest: wrapFunction((n: Value): ExprFunc => {
         const numToKeep = expectNumber(n);
         return (rolls: Value) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
     }, [expectNumber]),
-    min: wrapBuiltin((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
-    max: wrapBuiltin((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
+    min: wrapFunction((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
+    max: wrapFunction((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
 
-    '+': wrapBuiltin((lhs: Value, rhs: Value) => {
+    '+': wrapFunction((lhs: Value, rhs: Value) => {
         // Concatenate arrays
         if (typeof lhs === 'object' && typeof rhs === 'object' && lhs !== null && rhs !== null) {
             return [...lhs, ...rhs];
@@ -308,27 +309,27 @@ const builtins: Record<string, WrappedBuiltin> = {
         }
         throw new TypeError('Expected number or array');
     }, [expectAny, expectAny]),
-    '-': wrapBuiltin((lhs: number, rhs: number): number => lhs - rhs, [expectNumber, expectNumber]),
-    '*': wrapBuiltin((lhs: number, rhs: number): number => lhs * rhs, [expectNumber, expectNumber]),
-    '/': wrapBuiltin((lhs: number, rhs: number): number => lhs / rhs, [expectNumber, expectNumber]),
-    '%': wrapBuiltin((lhs: number, rhs: number): number =>
+    '-': wrapFunction((lhs: number, rhs: number): number => lhs - rhs, [expectNumber, expectNumber]),
+    '*': wrapFunction((lhs: number, rhs: number): number => lhs * rhs, [expectNumber, expectNumber]),
+    '/': wrapFunction((lhs: number, rhs: number): number => lhs / rhs, [expectNumber, expectNumber]),
+    '%': wrapFunction((lhs: number, rhs: number): number =>
         ((lhs % rhs) + rhs) % rhs,
     [expectNumber, expectNumber]),
-    '**': wrapBuiltin((lhs: number, rhs: number): number => Math.pow(lhs, rhs), [expectNumber, expectNumber]),
-    '<': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs < rhs), [expectNumber, expectNumber]),
-    '<=': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs <= rhs), [expectNumber, expectNumber]),
-    '>': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs > rhs), [expectNumber, expectNumber]),
-    '>=': wrapBuiltin((lhs: number, rhs: number): number => Number(lhs >= rhs), [expectNumber, expectNumber]),
-    '=': wrapBuiltin((lhs: Value, rhs: Value): number =>
+    '**': wrapFunction((lhs: number, rhs: number): number => Math.pow(lhs, rhs), [expectNumber, expectNumber]),
+    '<': wrapFunction((lhs: number, rhs: number): number => Number(lhs < rhs), [expectNumber, expectNumber]),
+    '<=': wrapFunction((lhs: number, rhs: number): number => Number(lhs <= rhs), [expectNumber, expectNumber]),
+    '>': wrapFunction((lhs: number, rhs: number): number => Number(lhs > rhs), [expectNumber, expectNumber]),
+    '>=': wrapFunction((lhs: number, rhs: number): number => Number(lhs >= rhs), [expectNumber, expectNumber]),
+    '=': wrapFunction((lhs: Value, rhs: Value): number =>
         Number(equals(lhs, rhs)),
     [expectNumber, expectNumber]),
-    '!=': wrapBuiltin((lhs: Value, rhs: Value): number =>
+    '!=': wrapFunction((lhs: Value, rhs: Value): number =>
         Number(!equals(lhs, rhs)),
     [expectNumber, expectNumber]),
-    '|': wrapBuiltin((lhs: number, rhs: number): number => Math.max(lhs, rhs), [expectNumber, expectNumber]),
-    '&': wrapBuiltin((lhs: number, rhs: number): number => Math.min(lhs, rhs), [expectNumber, expectNumber]),
-    '!': wrapBuiltin((rhs: number) => 1 - rhs, [expectNumber]),
-    '...': wrapBuiltin((values: number[]) =>
+    '|': wrapFunction((lhs: number, rhs: number): number => Math.max(lhs, rhs), [expectNumber, expectNumber]),
+    '&': wrapFunction((lhs: number, rhs: number): number => Math.min(lhs, rhs), [expectNumber, expectNumber]),
+    '!': wrapFunction((rhs: number) => 1 - rhs, [expectNumber]),
+    '...': wrapFunction((values: number[]) =>
         values.reduce((prev, cur) => prev + cur, 0),
     [expectArrayOfNumbers])
 };
@@ -371,7 +372,7 @@ class EvaluationError extends Error {
     }
 }
 
-const evaluate = (expr: Expression, environment?: Partial<Record<string, Value>>): Value => {
+const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValue>>): Value => {
     let finalResult: Value;
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
@@ -383,7 +384,15 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, Value>>
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
         rootEnvironment.variables[builtinName] = wrapper(continuations);
     }
-    Object.assign(rootEnvironment, environment);
+    if (environment) {
+        for (const [varName, value] of Object.entries(environment)) {
+            if (typeof value === 'function') {
+                rootEnvironment.variables[varName] = value(continuations);
+            } else {
+                rootEnvironment.variables[varName] = value;
+            }
+        }
+    }
     let next: StackFrame | null = {expr, environment: rootEnvironment};
     let currentExpr: Expression = expr;
     try {
@@ -541,5 +550,17 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, Value>>
 };
 
 export default evaluate;
-export {EvaluationError};
-export type {Value};
+export {
+    EvaluationError,
+
+    wrapFunction,
+    wrapDeferred,
+
+    expectAny,
+    expectArray,
+    expectArrayOf,
+    expectFunction,
+    expectNull,
+    expectNumber
+};
+export type {Value, EnvValue};

@@ -279,14 +279,10 @@ const builtins: Record<string, WrappedFunction> = {
             report(results);
         });
     }, [expectFunction, expectArrayOfNumbers] as const),
-    highest: wrapFunction((n: number): ExprFunc => {
-        const numToKeep = expectNumber(n);
-        return (rolls: Value) => keepHighest(expectArrayOfNumbers(rolls), numToKeep);
-    }, [expectNumber]),
-    lowest: wrapFunction((n: Value): ExprFunc => {
-        const numToKeep = expectNumber(n);
-        return (rolls: Value) => keepLowest(expectArrayOfNumbers(rolls), numToKeep);
-    }, [expectNumber]),
+    highest: wrapFunction((n: number, rolls: number[]) =>
+        keepHighest(rolls, n), [expectNumber, expectArrayOfNumbers] as const),
+    lowest: wrapFunction((n: number, rolls: number[]) =>
+        keepLowest(rolls, n), [expectNumber, expectArrayOfNumbers] as const),
     min: wrapFunction((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
     max: wrapFunction((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
 

@@ -323,7 +323,7 @@ const builtins: Record<string, WrappedBuiltin> = {
         Number(equals(lhs, rhs)),
     [expectNumber, expectNumber]),
     '!=': wrapBuiltin((lhs: Value, rhs: Value): number =>
-        Number(equals(lhs, rhs)),
+        Number(!equals(lhs, rhs)),
     [expectNumber, expectNumber]),
     '|': wrapBuiltin((lhs: number, rhs: number): number => Math.max(lhs, rhs), [expectNumber, expectNumber]),
     '&': wrapBuiltin((lhs: number, rhs: number): number => Math.min(lhs, rhs), [expectNumber, expectNumber]),
@@ -371,7 +371,7 @@ class EvaluationError extends Error {
     }
 }
 
-const evaluate = (expr: Expression): Value => {
+const evaluate = (expr: Expression, environment?: Partial<Record<string, Value>>): Value => {
     let finalResult: Value;
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
@@ -383,6 +383,7 @@ const evaluate = (expr: Expression): Value => {
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
         rootEnvironment.variables[builtinName] = wrapper(continuations);
     }
+    Object.assign(rootEnvironment, environment);
     let next: StackFrame | null = {expr, environment: rootEnvironment};
     let currentExpr: Expression = expr;
     try {
@@ -541,3 +542,4 @@ const evaluate = (expr: Expression): Value => {
 
 export default evaluate;
 export {EvaluationError};
+export type {Value};

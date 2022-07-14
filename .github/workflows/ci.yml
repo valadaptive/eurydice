@@ -21,7 +21,7 @@ jobs:
       - run: npm ci
 
   build:
-  - needs: setup
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,7 +30,7 @@ jobs:
       - run: npm run build
 
   test:
-  - needs: setup
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:

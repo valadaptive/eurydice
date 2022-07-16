@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import parse, {sexpr} from './parse';
 import evaluate, {EvaluationError} from './evaluate';
+import printValue from './print';
 import formatError from './util/format-error';
 import {readFileSync} from 'fs';
 
@@ -25,7 +26,7 @@ const input = ('evaluate' in args.named) ? args.named.evaluate! : readFileSync(a
 const parsedInput = parse(input);
 console.log(sexpr(parsedInput));
 try {
-    console.log(evaluate(parsedInput));
+    console.log(printValue(evaluate(parsedInput)));
 } catch (err) {
     if (err instanceof EvaluationError) throw formatError(err as Error, input, err.expr.start, err.expr.end + 1);
     throw err;

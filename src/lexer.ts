@@ -21,6 +21,7 @@ enum TokenType {
     BRACKET_L,
     BRACKET_R,
     COMMA,
+    DOT,
 
     AT,
     ARROW,
@@ -64,6 +65,7 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     '[': TokenType.BRACKET_L,
     ']': TokenType.BRACKET_R,
     ',': TokenType.COMMA,
+    '.': TokenType.DOT,
     '@': TokenType.AT,
     'let': TokenType.LET,
     'and': TokenType.LET_AND,
@@ -80,7 +82,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)`, 'y');
+        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)`, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }

@@ -96,7 +96,7 @@ suite('interpreter', () => {
             });
 
             test('...', () => {
-                expect(evaluateString('...[1, 2, 3]')).equals(6);
+                expect(evaluateString('...[1. 2. 3]')).equals(6);
             });
         });
 
@@ -130,19 +130,19 @@ suite('interpreter', () => {
         });
 
         test('sort', () => {
-            expect(evaluateString('sort [1, 11, 5, 23, 4]')).eql([1, 4, 5, 11, 23]);
+            expect(evaluateString('sort [1. 11. 5. 23. 4]')).eql([1, 4, 5, 11, 23]);
         });
 
         test('len', () => {
-            expect(evaluateString('len [1, 11, 5, 23, 4]')).equals(5);
+            expect(evaluateString('len [1. 11. 5. 23. 4]')).equals(5);
         });
 
         test('map', () => {
-            expect(evaluateString('map [1, 11, 5, 23, 4], (@x x * 2)')).eql([2, 22, 10, 46, 8]);
+            expect(evaluateString('map [1. 11. 5. 23. 4], (@x x * 2)')).eql([2, 22, 10, 46, 8]);
         });
 
         test('reduce', () => {
-            expect(evaluateString('reduce [1, 11, 5, 23, 4], (@prev @cur (cur * 2) + prev), 2')).equals(90);
+            expect(evaluateString('reduce [1. 11. 5. 23. 4], (@prev @cur (cur * 2) + prev), 2')).equals(90);
         });
 
         test('reroll', () => {
@@ -168,23 +168,23 @@ suite('interpreter', () => {
         });
 
         test('drop', () => {
-            expect(evaluateString('drop (@_ [7, 2, 2]), [3, 7, 9, 2, 15, 4, 5, 7]')).eql([3, 9, 15, 4, 5, 7]);
+            expect(evaluateString('drop (@_ [7. 2. 2]), [3. 7. 9. 2. 15. 4. 5. 7]')).eql([3, 9, 15, 4, 5, 7]);
         });
 
         test('highest', () => {
-            expect(evaluateString('highest 3, [3, 7, 9, 2, 15, 4, 5, 7]')).members([7, 9, 15]);
+            expect(evaluateString('highest 3, [3. 7. 9. 2. 15. 4. 5. 7]')).members([7, 9, 15]);
         });
 
         test('lowest', () => {
-            expect(evaluateString('lowest 3, [3, 7, 9, 2, 15, 4, 5, 7]')).members([2, 3, 4]);
+            expect(evaluateString('lowest 3, [3. 7. 9. 2. 15. 4. 5. 7]')).members([2, 3, 4]);
         });
 
         test('min', () => {
-            expect(evaluateString('min [3, 7, 9, 2, 15, 4, 5, 7]')).equals(2);
+            expect(evaluateString('min [3. 7. 9. 2. 15. 4. 5. 7]')).equals(2);
         });
 
         test('max', () => {
-            expect(evaluateString('max [3, 7, 9, 2, 15, 4, 5, 7]')).equals(15);
+            expect(evaluateString('max [3. 7. 9. 2. 15. 4. 5. 7]')).equals(15);
         });
     });
 
@@ -201,26 +201,26 @@ suite('interpreter', () => {
     });
 
     test('let bindings', () => {
-        expect(evaluateString('let x 5 in [x, x]')).eql([5, 5]);
+        expect(evaluateString('let x 5 in [x. x]')).eql([5, 5]);
     });
 
     test('multi-variable let bindings', () => {
-        expect(evaluateString('let x 5 and y 3 in [x, y, x, y]')).eql([5, 3, 5, 3]);
+        expect(evaluateString('let x 5 and y 3 in [x. y. x. y]')).eql([5, 3, 5, 3]);
     });
 
     test('self-referential let bindings', () => {
-        expect(() => evaluateString('let x 5 and y x + 1 in [x, y, x, y]')).throws();
+        expect(() => evaluateString('let x 5 and y x + 1 in [x. y. x. y]')).throws();
     });
 
     test('parameter binding scope', () => {
-        expect(evaluateString('(@x [x, (@x x * 2) 3, x]) 2, 2')).equals(2);
+        expect(evaluateString('(@x [x. (@x x * 2) 3. x]) 2, 2')).equals(2);
     });
 
     test('closed-over variables', () => {
-        expect(evaluateString('let x 5 in (let closure @x @y [x, y] in closure 3), 2')).eql([3, 2]);
+        expect(evaluateString('let x 5 in (let closure @x @y [x. y] in closure 3), 2')).eql([3, 2]);
     });
 
     test('if/else', () => {
-        expect(evaluateString('map [0, 2, 4, 1, 3], (@x if x > 2 then 5 else 2)')).eql([2, 2, 5, 2, 5]);
+        expect(evaluateString('map [0. 2. 4. 1. 3], (@x if x > 2 then 5 else 2)')).eql([2, 2, 5, 2, 5]);
     });
 });

@@ -148,10 +148,10 @@ const parseArray = (lexer: Lexer): Expression | null => {
     const elements: Expression[] = [];
     if (lexer.peek().type !== TokenType.BRACKET_R) {
         for (;;) {
-            const parsedExpr = parseExpression(lexer, 0, ExpressionMode.ARRAY_ELEMENT);
+            const parsedExpr = parseExpression(lexer, 0);
             if (parsedExpr === null) throw new Error('Expected expression');
             elements.push(parsedExpr);
-            if (lexer.peek().type !== TokenType.COMMA) break;
+            if (lexer.peek().type !== TokenType.DOT) break;
             lexer.next();
         }
     }
@@ -301,16 +301,9 @@ const postfixBindingPower: Partial<Record<TokenType, number>> = {
     [TokenType.COMMA]: 21
 };
 
-enum ExpressionMode {
-    NORMAL,
-    /** Break out early on commas. */
-    ARRAY_ELEMENT
-}
-
 const parseExpression = (
     lexer: Lexer,
-    minBP: number,
-    mode: ExpressionMode = ExpressionMode.NORMAL): Expression | null => {
+    minBP: number): Expression | null => {
     let lhs: Expression | null = parseNumber(lexer);
     if (lhs === null) lhs = parseParenthesized(lexer);
     if (lhs === null) lhs = parseArray(lexer);
@@ -331,7 +324,7 @@ const parseExpression = (
             op.type === TokenType.THEN ||
             op.type === TokenType.ELSE ||
             op.type === TokenType.LET_AND ||
-            (op.type === TokenType.COMMA && mode === ExpressionMode.ARRAY_ELEMENT)
+            op.type === TokenType.DOT
         ) break;
 
         const postfixPowers = postfixBindingPower[op.type];

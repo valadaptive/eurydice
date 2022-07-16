@@ -11,17 +11,17 @@ For example:
 calls the builtin `d` (dice roll) function with the argument `20`. Functions with only one argument don't require parentheses.
 
 ```
-> d[1, 4, 5]
+> d[1. 4. 5]
 
 4
 ```
-calls `d` with the array argument `[1, 4, 5]`, defining the faces of the die.
+calls `d` with the array argument `[1. 4. 5]`, defining the faces of the die.
 
 Rolling multiple dice can be done with:
 ```
 > 5d20
 
-[9, 20, 14, 4, 8]
+[9. 20. 14. 4. 8]
 ```
 which evaluates the expression `d20` 5 times and stores the results in an array.
 
@@ -45,7 +45,7 @@ There are also Boolean operators. They work on numbers as well--0 is false and 1
 ```
 > 5(d20 > 10)
 
-[0, 1, 1, 0, 0]
+[0. 1. 1. 0. 0]
 ```
 
 This allows the `&` operator to double as "minimum" and `|` to double as "maximum":

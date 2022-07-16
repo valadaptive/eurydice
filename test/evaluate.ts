@@ -98,6 +98,11 @@ suite('interpreter', () => {
             test('...', () => {
                 expect(evaluateString('...[1. 2. 3]')).equals(6);
             });
+
+            test('- (unary negation)', () => {
+                const result = evaluateString('-2');
+                expect(result).equals(-2);
+            });
         });
 
         test('floor', () => {

@@ -182,10 +182,17 @@ const parseName = (lexer: Lexer): Variable | null => {
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
     [TokenType.AT]: 1,
     [TokenType.LET]: 1,
-    [TokenType.IF]: 3
+    [TokenType.IF]: 3,
+    [TokenType.MINUS]: 19,
+    [TokenType.NOT]: 19
 };
 
-const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpression | null => {
+const prefixToBuiltin = {
+    [TokenType.MINUS]: 'negate',
+    [TokenType.NOT]: '!'
+};
+
+const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpression | ApplyExpression | null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
@@ -246,6 +253,24 @@ const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpre
                 falseBranch,
                 start: next.start,
                 end: falseBranch.end
+            };
+        }
+        case TokenType.NOT:
+        case TokenType.MINUS: {
+            lexer.next();
+            const operand = parseExpression(lexer, rbp);
+            if (operand === null) throw new Error('Expected expression');
+            return {
+                type: 'apply',
+                lhs: {
+                    type: 'variable',
+                    value: prefixToBuiltin[next.type],
+                    start: next.start,
+                    end: next.start + next.value.length
+                },
+                rhs: operand,
+                start: next.start,
+                end: operand.end
             };
         }
     }

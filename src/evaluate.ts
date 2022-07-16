@@ -327,7 +327,8 @@ const builtins: Record<string, WrappedFunction> = {
     '!': wrapFunction((rhs: number) => 1 - rhs, [expectNumber]),
     '...': wrapFunction((values: number[]) =>
         values.reduce((prev, cur) => prev + cur, 0),
-    [expectArrayOfNumbers])
+    [expectArrayOfNumbers]),
+    negate: wrapFunction((rhs: number): number => -rhs, [expectNumber])
 };
 
 // Deep equality check (for functions, arrays, and numbers).

@@ -15,6 +15,7 @@ enum TokenType {
 
     OR,
     AND,
+    NOT,
 
     PAREN_L,
     PAREN_R,
@@ -60,6 +61,7 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     '!=': TokenType.NE,
     '|': TokenType.OR,
     '&': TokenType.AND,
+    '!': TokenType.NOT,
     '(': TokenType.PAREN_L,
     ')': TokenType.PAREN_R,
     '[': TokenType.BRACKET_L,

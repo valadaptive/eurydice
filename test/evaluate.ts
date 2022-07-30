@@ -228,4 +228,8 @@ suite('interpreter', () => {
     test('if/else', () => {
         expect(evaluateString('map [0. 2. 4. 1. 3], (@x if x > 2 then 5 else 2)')).eql([2, 2, 5, 2, 5]);
     });
+
+    test('comments', () => {
+        expect(evaluateString('#hi!\nlet x #this is a comment\n5 in x + x\n#')).equals(10);
+    });
 });

@@ -84,7 +84,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)`, 'y');
+        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)|(#[^\n]*)`, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }
@@ -113,8 +113,8 @@ class Lexer {
                 if (typeof tokenType === 'number') return {type: tokenType, value: match[3], start: match.index};
                 return {type: TokenType.NAME, value: match[3], start: match.index};
             }
-            // Whitespace
-            if (typeof match[4] === 'string') continue;
+            // Whitespace or comments
+            if (typeof match[4] === 'string' || typeof match[5] === 'string') continue;
         }
     }
 

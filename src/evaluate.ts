@@ -561,4 +561,4 @@ export {
     expectNull,
     expectNumber
 };
-export type {Value, EnvValue};
+export type {Value, EnvValue, WrappedFunction};

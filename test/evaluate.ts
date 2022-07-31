@@ -1,4 +1,4 @@
-import evaluate, {wrapFunction, expectNull, Value, EnvValue} from '../src/evaluate';
+import evaluate, {wrapFunction, WrappedFunction, expectNull, Value, EnvValue} from '../src/evaluate';
 import parse from '../src/parse';
 import {expect} from 'chai';
 
@@ -304,5 +304,30 @@ suite('interpreter', () => {
 
     test('strings', () => {
         expect(evaluateString('#hi!\nlet x #this is a comment\n5 in x + x\n#')).equals(10);
+    });
+
+    suite('evaluation order', () => {
+        const seq = (): WrappedFunction => {
+            let i = 1;
+            return wrapFunction((_) => {
+                return i++;
+            }, [expectNull]);
+        };
+
+        test('let bindings', () => {
+            expect(evaluateString('let x seq() and y seq() and z seq() in [x. y. z]', {seq: seq()})).eql([1, 2, 3]);
+        });
+
+        test('array expressions', () => {
+            expect(evaluateString('[seq(). seq(). seq()]', {seq: seq()})).eql([1, 2, 3]);
+        });
+
+        test('binary expressions', () => {
+            expect(evaluateString('seq() - seq()', {seq: seq()})).equals(-1);
+        });
+
+        test('apply expressions', () => {
+            expect(evaluateString('seq(), seq()', {seq: seq()})).eql([2]);
+        });
     });
 });

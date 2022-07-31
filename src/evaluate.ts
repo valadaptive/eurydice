@@ -195,24 +195,20 @@ const builtins: Record<string, WrappedFunction> = {
         let i = 0;
         let prev = initialValue;
         const evalNext = (): void => {
+            if (i === arr.length) {
+                report(prev);
+                return;
+            }
             call(reducer, prev, innerReducer => {
                 const innerReducerFunc = expectFunction(innerReducer);
                 call(innerReducerFunc, arr[i], result => {
                     prev = result;
                     i++;
-                    if (i === arr.length) {
-                        report(prev);
-                    } else {
-                        evalNext();
-                    }
+                    evalNext();
                 });
             });
         };
-        if (arr.length > 0) {
-            evalNext();
-        } else {
-            report(initialValue);
-        }
+        evalNext();
     }, [expectArray, expectFunction, expectAny] as const),
     reroll: wrapDeferred((report, call, roll, cond) => {
         let i = 0;
@@ -419,22 +415,18 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     const evaluatedElements: Value[] = [];
                     let elemIndex = 0;
                     const evalNext = (): void => {
+                        if (elemIndex === expr.elements.length) {
+                            continuations.pop()!(evaluatedElements);
+                            return;
+                        }
                         next = {expr: expr.elements[elemIndex], environment};
                         continuations.push(elem => {
                             evaluatedElements.push(elem);
                             elemIndex++;
-                            if (elemIndex === expr.elements.length) {
-                                continuations.pop()!(evaluatedElements);
-                            } else {
-                                evalNext();
-                            }
+                            evalNext();
                         });
                     };
-                    if (expr.elements.length) {
-                        evalNext();
-                    } else {
-                        continuations.pop()!([]);
-                    }
+                    evalNext();
                     break;
                 }
                 case 'variable': {
@@ -469,14 +461,14 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                                 const evalNext = (): void => {
                                     if (numRemaining <= 0) {
                                         continuations.pop()!(evaluatedElements);
-                                    } else {
-                                        next = {expr: expr.rhs, environment};
-                                        continuations.push(elem => {
-                                            evaluatedElements.push(elem);
-                                            numRemaining--;
-                                            evalNext();
-                                        });
+                                        return;
                                     }
+                                    next = {expr: expr.rhs, environment};
+                                    continuations.push(elem => {
+                                        evaluatedElements.push(elem);
+                                        numRemaining--;
+                                        evalNext();
+                                    });
                                 };
                                 evalNext();
                                 break;

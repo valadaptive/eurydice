@@ -6,6 +6,26 @@ const evaluateString = (str: string, environment?: Partial<Record<string, EnvVal
     evaluate(parse(str), environment);
 
 suite('interpreter', () => {
+    suite('types', () => {
+        test('number', () => {
+            expect(evaluateString('123')).equals(123);
+        });
+
+        test('string', () => {
+            expect(evaluateString('"hello"')).equals('hello');
+        });
+
+        test('null', () => {
+            expect(evaluateString('()')).equals(null);
+        });
+
+        test('array', () => {
+            expect(evaluateString('[1. 2. 3. 4. 5]')).eql([1, 2, 3, 4, 5]);
+            expect(evaluateString('[1. 2. 3. 2 + 2. 5]')).eql([1, 2, 3, 4, 5]);
+            expect(evaluateString('[]')).eql([]);
+        });
+    });
+
     suite('builtins', () => {
         suite('operators', () => {
             suite('+', () => {

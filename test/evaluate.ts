@@ -303,7 +303,7 @@ suite('interpreter', () => {
     });
 
     test('strings', () => {
-        expect(evaluateString('#hi!\nlet x #this is a comment\n5 in x + x\n#')).equals(10);
+        expect(evaluateString('"hi"')).equals('hi');
     });
 
     suite('evaluation order', () => {

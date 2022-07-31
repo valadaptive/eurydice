@@ -231,8 +231,27 @@ suite('interpreter', () => {
         expect(evaluateString('1 < 2 = 3 > 2')).equals(1);
     });
 
-    test('numeric apply', () => {
-        expect(evaluateString('5 (2 + 2)')).eql([4, 4, 4, 4, 4]);
+    suite('numeric apply', () => {
+        test('basic', () => {
+            expect(evaluateString('5 (2 + 2)')).eql([4, 4, 4, 4, 4]);
+        });
+
+        test('expression re-evaluated each time', () => {
+            const sequence = [1, 7, 4, 15, 2, 3];
+            let i = 0;
+            const seq = wrapFunction((_) => {
+                return sequence[i++];
+            }, [expectNull]);
+            expect(evaluateString('5 seq()', {seq})).eql([1, 7, 4, 15, 2]);
+        });
+
+        test('zero', () => {
+            expect(evaluateString('0 (2 + 2)')).eql([]);
+        });
+
+        test('negative', () => {
+            expect(evaluateString('(-1) (2 + 2)')).eql([]);
+        });
     });
 
     test('let bindings', () => {

@@ -466,18 +466,18 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                                 const evaluatedElements: Value[] = [];
                                 let numRemaining = lhs;
                                 const evalNext = (): void => {
-                                    next = {expr: expr.rhs, environment};
-                                    continuations.push(elem => {
-                                        evaluatedElements.push(elem);
-                                        numRemaining--;
-                                        if (numRemaining === 0) {
-                                            continuations.pop()!(evaluatedElements);
-                                        } else {
+                                    if (numRemaining <= 0) {
+                                        continuations.pop()!(evaluatedElements);
+                                    } else {
+                                        next = {expr: expr.rhs, environment};
+                                        continuations.push(elem => {
+                                            evaluatedElements.push(elem);
+                                            numRemaining--;
                                             evalNext();
-                                        }
-                                    });
+                                        });
+                                    }
                                 };
-                                if (numRemaining > 0) evalNext();
+                                evalNext();
                                 break;
                             }
                             case 'object': {

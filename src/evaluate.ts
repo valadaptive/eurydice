@@ -1,4 +1,5 @@
 import {Expression} from './parse';
+import printValue from './print';
 
 type ExprFunc = (arg: Value) => void;
 type Value = number | string | ExprFunc | Value[] | null;
@@ -11,22 +12,22 @@ const MAX_REROLLS = 100;
 const expectAny = (input: Value): Value => input;
 
 const expectNull = (input: Value): null => {
-    if (input !== null) throw new TypeError(`Expected null, got ${String(input)}`);
+    if (input !== null) throw new TypeError(`Expected null, got ${printValue(input)}`);
     return input;
 };
 
 const expectNumber = (input: Value): number => {
-    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${String(input)}`);
+    if (typeof input !== 'number') throw new TypeError(`Expected number, got ${printValue(input)}`);
     return input;
 };
 
 const expectArray = (input: Value): Value[] => {
-    if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${String(input)}`);
+    if (typeof input !== 'object' || input === null) throw new TypeError(`Expected array, got ${printValue(input)}`);
     return input;
 };
 
 const expectFunction = (input: Value): ExprFunc => {
-    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${String(input)}`);
+    if (typeof input !== 'function') throw new TypeError(`Expected function, got ${printValue(input)}`);
     return input;
 };
 

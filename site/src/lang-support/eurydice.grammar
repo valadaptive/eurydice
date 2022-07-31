@@ -1,0 +1,130 @@
+@top Program { expression }
+
+@precedence {
+    empty @right,
+    comma @right,
+    prefix,
+    power @left,
+    muldivmod @left,
+    plusminus @left,
+    and @left,
+    or @left,
+    cmp @left,
+    eq @left
+}
+
+expression {
+    commaExpression |
+    Variable |
+    Number |
+    String |
+    ApplyExpression |
+    BinaryExpression |
+    UnaryExpression |
+    ArrayExpression |
+    LetExpression |
+    IfExpression |
+    UnitExpression |
+    FunctionExpression |
+    parenthesizedExpression
+}
+
+ApplyExpression {
+    expression !empty expression
+}
+
+commaExpression {
+    expression !comma Comma
+}
+
+ArrayExpression {
+    OpenBracket (expression (Dot expression)*)? CloseBracket
+}
+
+LetDef {
+    Variable expression
+}
+
+LetExpression {
+    Let LetDef (LetAnd LetDef)* In expression
+}
+
+IfExpression {
+    If expression Then expression Else expression
+}
+
+UnaryExpression {
+    !prefix Not expression |
+    !prefix Minus expression
+}
+
+BinaryExpression {
+    expression !power Power expression |
+    expression !muldivmod (Multiply | Divide | Modulo) expression |
+    expression !plusminus (Plus | Minus) expression |
+    expression !and And expression |
+    expression !or Or expression |
+    expression !cmp (Greater | GreaterEq | Less | LessEq) expression |
+    expression !eq (Eq | NotEq) expression
+}
+
+FunctionExpression {
+    FunctionParameter expression
+}
+
+FunctionParameter {
+    "@" name
+}
+
+parenthesizedExpression {OpenParen expression CloseParen}
+UnitExpression {OpenParen CloseParen}
+
+Let {@specialize<name, "let">}
+In {@specialize<name, "in">}
+LetAnd {@specialize<name, "and">}
+
+If {@specialize<name, "if">}
+Then {@specialize<name, "then">}
+Else {@specialize<name, "else">}
+
+Variable {name}
+
+@tokens {
+    space {@whitespace+}
+    String {"\"" (!["\\] | ("\\" ($[\\bfnrt] | ("u" $[0-9a-fA-F] $[0-9a-fA-F] $[0-9a-fA-F] $[0-9a-fA-F]))))* "\""}
+    Number {((@digit+ ("." @digit+)?) | ("." @digit+)) ("e" ("+" | "-") @digit+)?}
+    name {((@asciiLetter | "_")+) | spread}
+    spread {"..."}
+    OpenParen {"("}
+    CloseParen {")"}
+    OpenBracket {"["}
+    CloseBracket {"]"}
+    Comma {","}
+    Dot {"."}
+    Power {"**"}
+    Multiply {"*"}
+    Divide {"/"}
+    Modulo {"%"}
+    Plus {"+"}
+    Minus {"-"}
+    And {"&"}
+    Or {"|"}
+    Not {"!"}
+    Greater {">"}
+    GreaterEq {">="}
+    Less {"<"}
+    LessEq {"<="}
+    Eq {"="}
+    NotEq {"!="}
+    Comment { "#" ![\n]* }
+
+    @precedence {NotEq, Not}
+    @precedence {name, Number, Dot}
+}
+
+@skip {
+    space |
+    Comment
+}
+
+@detectDelim

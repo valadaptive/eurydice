@@ -3,7 +3,7 @@ import type {Value} from './evaluate';
 const printValue = (value: Value): string => {
     switch (typeof value) {
         case 'number': return value.toString();
-        case 'string': return value;
+        case 'string': return JSON.stringify(value);
         case 'object': {
             if (value === null) return '()';
             return `[${value.join('. ')}]`;

@@ -8,29 +8,50 @@ const evaluateString = (str: string, environment?: Partial<Record<string, EnvVal
 suite('interpreter', () => {
     suite('builtins', () => {
         suite('operators', () => {
-            test('+', () => {
-                const result = evaluateString('3 + 2');
-                expect(result).equals(5);
+            suite('+', () => {
+                test('number + number', () => {
+                    expect(evaluateString('3 + 2')).equals(5);
+                });
+
+                test('string + string', () => {
+                    expect(evaluateString('"hello" + "world"')).equals('helloworld');
+                });
+
+                test('array + number', () => {
+                    expect(evaluateString('[1. 2. 3] + 4')).eql([1, 2, 3, 4]);
+                });
+
+                test('number + array', () => {
+                    expect(evaluateString('4 + [1. 2. 3]')).eql([4, 1, 2, 3]);
+                });
+
+                test('array + string', () => {
+                    expect(evaluateString('["a". "b". "c"] + "d"')).eql(['a', 'b', 'c', 'd']);
+                });
+
+                test('string + array', () => {
+                    expect(evaluateString('"d" + ["a". "b". "c"]')).eql(['d', 'a', 'b', 'c']);
+                });
+
+                test('array + array', () => {
+                    expect(evaluateString('[1. 2. 3] + [4. 5. 6]')).eql([1, 2, 3, 4, 5, 6]);
+                });
             });
 
             test('-', () => {
-                const result = evaluateString('3 - 2');
-                expect(result).equals(1);
+                expect(evaluateString('3 - 2')).equals(1);
             });
 
             test('*', () => {
-                const result = evaluateString('3 * 2');
-                expect(result).equals(6);
+                expect(evaluateString('3 * 2')).equals(6);
             });
 
             test('/', () => {
-                const result = evaluateString('3 / 2');
-                expect(result).equals(1.5);
+                expect(evaluateString('3 / 2')).equals(1.5);
             });
 
             test('**', () => {
-                const result = evaluateString('3 ** 2');
-                expect(result).equals(9);
+                expect(evaluateString('3 ** 2')).equals(9);
             });
 
             test('%', () => {
@@ -66,6 +87,11 @@ suite('interpreter', () => {
                 expect(evaluateString('3 = 2')).equals(0);
                 expect(evaluateString('3 = 3')).equals(1);
                 expect(evaluateString('(1 + 2) = 3')).equals(1);
+                expect(evaluateString('[1. 2. 3] = [1. 2. 3]')).equals(1);
+                expect(evaluateString('[1. 2. 3] = [1. 2. 4]')).equals(0);
+                expect(evaluateString('"hello" = "hello"')).equals(1);
+                expect(evaluateString('"hello" = "he" + "llo"')).equals(1);
+                expect(evaluateString('"hello" = "world"')).equals(0);
             });
 
             test('!=', () => {
@@ -140,14 +166,18 @@ suite('interpreter', () => {
 
         test('len', () => {
             expect(evaluateString('len [1. 11. 5. 23. 4]')).equals(5);
+            expect(evaluateString('len "hello"')).equals(5);
+            expect(() => evaluateString('len 5')).throws();
         });
 
         test('map', () => {
             expect(evaluateString('map [1. 11. 5. 23. 4], (@x x * 2)')).eql([2, 22, 10, 46, 8]);
+            expect(evaluateString('map [], (@x x * 2)')).eql([]);
         });
 
         test('reduce', () => {
             expect(evaluateString('reduce [1. 11. 5. 23. 4], (@prev @cur (cur * 2) + prev), 2')).equals(90);
+            expect(evaluateString('reduce [], (@prev @cur (cur * 2) + prev), 2')).equals(2);
         });
 
         test('reroll', () => {
@@ -230,6 +260,10 @@ suite('interpreter', () => {
     });
 
     test('comments', () => {
+        expect(evaluateString('#hi!\nlet x #this is a comment\n5 in x + x\n#')).equals(10);
+    });
+
+    test('strings', () => {
         expect(evaluateString('#hi!\nlet x #this is a comment\n5 in x + x\n#')).equals(10);
     });
 });

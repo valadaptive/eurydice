@@ -1,8 +1,8 @@
 import {Expression} from './parse';
 
 type ExprFunc = (arg: Value) => void;
-type Value = number | ExprFunc | Value[] | null;
-type EnvValue = number | WrappedFunction | Value[] | null;
+type Value = number | string | ExprFunc | Value[] | null;
+type EnvValue = number | string | WrappedFunction | Value[] | null;
 
 const truthy = (value: number): boolean => value > 0;
 
@@ -141,13 +141,13 @@ const builtins: Record<string, WrappedFunction> = {
      * or an array of face values, possibly nested.
      * For instance, a d[1, [2, 3]] has a 50% chance of rolling a 1, 25% of rolling a 2, and 25% of rolling a 3.
      */
-    d: wrapFunction((n: Value): number => {
+    d: wrapFunction((n: Value): number | string => {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
         if (typeof n === 'object' && n !== null) {
             let currentArray: Value[] = n;
             for (;;) {
                 const choice = currentArray[Math.floor(Math.random() * currentArray.length)];
-                if (typeof choice === 'number') return choice;
+                if (typeof choice === 'number' || typeof choice === 'string') return choice;
                 if (typeof choice === 'object' && choice !== null) {
                     currentArray = choice;
                     continue;
@@ -164,8 +164,11 @@ const builtins: Record<string, WrappedFunction> = {
         .slice(0)
         .sort((a: Value, b: Value) => (a as number) - (b as number)),
     [expectArrayOfNumbers]),
-    /** Get the length of an array. */
-    len: wrapFunction((arr: Value[]): number => arr.length, [expectArray]),
+    /** Get the length of an array or string. */
+    len: wrapFunction((value: Value): number => {
+        if ((typeof value === 'object' && value !== null) || typeof value === 'string') return value.length;
+        throw new Error('Expected array or string');
+    }, [expectAny]),
     map: wrapDeferred((report, call, arr: Value[], mapper: ExprFunc): void => {
         const results: Value[] = [];
         let i = 0;
@@ -292,18 +295,22 @@ const builtins: Record<string, WrappedFunction> = {
             return [...lhs, ...rhs];
         }
         // Append to array
-        if (typeof lhs === 'object' && typeof rhs === 'number' && lhs !== null) {
+        if (typeof lhs === 'object' && (typeof rhs !== 'object' || rhs === null) && lhs !== null) {
             return [...lhs, rhs];
         }
         // Prepend to array
-        if (typeof lhs === 'number' && typeof rhs === 'object' && rhs !== null) {
+        if ((typeof lhs !== 'object' || lhs === null) && typeof rhs === 'object' && rhs !== null) {
             return [lhs, ...rhs];
         }
         // Add numbers
         if (typeof lhs === 'number' && typeof rhs === 'number') {
             return lhs + rhs;
         }
-        throw new TypeError('Expected number or array');
+        // Concatenate strings (in a separate if block so TypeScript is okay with it)
+        if (typeof lhs === 'string' && typeof rhs === 'string') {
+            return lhs + rhs;
+        }
+        throw new TypeError('Expected number, string, or array');
     }, [expectAny, expectAny]),
     '-': wrapFunction((lhs: number, rhs: number): number => lhs - rhs, [expectNumber, expectNumber]),
     '*': wrapFunction((lhs: number, rhs: number): number => lhs * rhs, [expectNumber, expectNumber]),
@@ -318,7 +325,7 @@ const builtins: Record<string, WrappedFunction> = {
     '>=': wrapFunction((lhs: number, rhs: number): number => Number(lhs >= rhs), [expectNumber, expectNumber]),
     '=': wrapFunction((lhs: Value, rhs: Value): number =>
         Number(equals(lhs, rhs)),
-    [expectNumber, expectNumber]),
+    [expectAny, expectAny]),
     '!=': wrapFunction((lhs: Value, rhs: Value): number =>
         Number(!equals(lhs, rhs)),
     [expectNumber, expectNumber]),
@@ -402,7 +409,8 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     continuations.pop()!(null);
                     break;
                 }
-                case 'number': {
+                case 'number':
+                case 'string': {
                     continuations.pop()!(expr.value);
                     break;
                 }

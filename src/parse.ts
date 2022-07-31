@@ -11,6 +11,11 @@ type NumLiteral = {
     value: number
 } & Span;
 
+type StringLiteral = {
+    type: 'string',
+    value: string
+} & Span;
+
 type Variable = {
     type: 'variable',
     value: string
@@ -80,12 +85,14 @@ UnitExpression |
 FunctionDefinition |
 ApplyExpression |
 NumLiteral |
+StringLiteral |
 Variable;
 
 const sexpr = (expr: Expression): string => {
     switch (expr.type) {
         case 'variable': return expr.value;
         case 'number': return expr.value.toString();
+        case 'string': return JSON.stringify(expr.value);
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'let': return `(let ${expr.variables.map(({name, value}) => `${name} ${sexpr(value)}`).join(' and ')} in ${sexpr(expr.body)})`;
         case 'if': return `(if ${sexpr(expr.condition)} then ${sexpr(expr.trueBranch)} else ${sexpr(expr.falseBranch)})`;
@@ -119,6 +126,19 @@ const parseNumber = (lexer: Lexer): NumLiteral | null => {
         value: Number(num.value),
         start: num.start,
         end: num.start + num.value.length
+    };
+};
+
+const parseString = (lexer: Lexer): StringLiteral | null => {
+    const str = lexer.peek();
+    if (str.type !== TokenType.STRING) return null;
+    lexer.next();
+    return {
+        type: 'string',
+        // Just use the JSON string parser
+        value: JSON.parse(str.value) as string,
+        start: str.start,
+        end: str.start + str.value.length
     };
 };
 
@@ -334,6 +354,7 @@ const parseExpression = (
     if (lhs === null) lhs = parseArray(lexer);
     if (lhs === null) lhs = parsePrefix(lexer);
     if (lhs === null) lhs = parseName(lexer);
+    if (lhs === null) lhs = parseString(lexer);
     // TODO: re-enable? There's a lot of footgun potential since it binds the left side first but the expression appears
     // to the right of the unmatched infix operator.
     // if (lhs === null) lhs = parseUnmatchedInfix(lexer);

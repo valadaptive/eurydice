@@ -35,6 +35,7 @@ enum TokenType {
     ELSE,
 
     NUMBER,
+    STRING,
     NAME,
 
     EOF
@@ -77,6 +78,15 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     'else': TokenType.ELSE
 };
 
+const STATIC_TOKEN = String.raw`\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@`;
+const NUMBER = String.raw`(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?`;
+const NAME = String.raw`[a-zA-Z_]+|\.\.\.|!`;
+const WHITESPACE = String.raw`\s+`;
+const COMMENT = String.raw`#[^\n]*`;
+const STRING = String.raw`"(?:[^"\\]|(?:\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})))*"`;
+
+const LEXER_REGEX = [STATIC_TOKEN, NUMBER, NAME, WHITESPACE, COMMENT, STRING].map(str => `(${str})`).join('|');
+
 class Lexer {
     _str: string;
     _regex: RegExp;
@@ -84,7 +94,7 @@ class Lexer {
     _nextToken: Token;
     constructor (str: string) {
         this._str = str;
-        this._regex = new RegExp(String.raw`(\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@)|((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?)|([a-zA-Z_]+|\.\.\.|!)|(\s+)|(#[^\n]*)`, 'y');
+        this._regex = new RegExp(LEXER_REGEX, 'y');
         this._curToken = null;
         this._nextToken = this._advance();
     }
@@ -115,6 +125,11 @@ class Lexer {
             }
             // Whitespace or comments
             if (typeof match[4] === 'string' || typeof match[5] === 'string') continue;
+
+            // String literals
+            if (typeof match[6] === 'string') {
+                return {type: TokenType.STRING, value: match[6], start: match.index};
+            }
         }
     }
 

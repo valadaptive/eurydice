@@ -28,8 +28,8 @@
 }
 
 .card {
-    border: 2px solid var(--foreground);
-    border-radius: 8px;
+    @extend .outlined;
+
     padding: 32px;
     flex-basis: 33%;
 }
@@ -41,12 +41,13 @@
 .description {
     margin: 0;
     font-size: 24px;
+    font-weight: 500;
 }
 
 .button {
+    @extend .outlined;
+
     padding: 10px;
-    border: 2px solid var(--foreground);
-    border-radius: 8px;
 }
 
 .nomargin {

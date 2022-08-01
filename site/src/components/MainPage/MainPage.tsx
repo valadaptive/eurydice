@@ -5,6 +5,7 @@ import type {JSX} from 'preact';
 import Page from '../Page/Page';
 import Logo from '../Logo/Logo.svg';
 import {FlexHorizontal, FlexHorizontalMobile, FlexVertical, FlexFill} from '../Flex/Flex';
+import CodeEditor from '../CodeEditor/CodeEditor';
 
 const MainPage = (): JSX.Element => (
     <Page>
@@ -27,7 +28,7 @@ const MainPage = (): JSX.Element => (
             </FlexHorizontal>
         </FlexVertical>
 
-        {/* cards */}
+        {/* TODO !!do not merge!! cards */}
         <FlexHorizontalMobile style="width: 100%;">
             <FlexFill class={style.card}>
                 <FlexVertical>
@@ -53,6 +54,7 @@ const MainPage = (): JSX.Element => (
         {/* try */}
         <FlexVertical>
             <h2 style="font-size: 36px;" class={style.nomargin}>Try eurydice</h2>
+            <CodeEditor/>
         </FlexVertical>
     </Page>
 );

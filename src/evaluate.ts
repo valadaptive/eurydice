@@ -146,7 +146,7 @@ const builtins: Record<string, WrappedFunction> = {
         if (typeof n === 'number') return Math.floor(Math.random() * Math.round(n)) + 1;
         if (typeof n === 'object' && n !== null) {
             let currentArray: Value[] = n;
-            for (;;) {
+            for (; ;) {
                 const choice = currentArray[Math.floor(Math.random() * currentArray.length)];
                 if (typeof choice === 'number' || typeof choice === 'string') return choice;
                 if (typeof choice === 'object' && choice !== null) {
@@ -542,7 +542,9 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
             }
         }
     } catch (err) {
-        throw new EvaluationError((err as Error).message, currentExpr);
+        const newError = new EvaluationError((err as Error).message, currentExpr);
+        newError.stack = (err as Error).stack;
+        throw newError;
     }
     return finalResult!;
 };

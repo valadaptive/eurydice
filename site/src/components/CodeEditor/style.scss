@@ -1,11 +1,19 @@
+@import "src/global.module";
+
 .code-editor-wrapper {
-    font-size: 200%;
-    font-family: monospace;
-    border: 1px solid grey;
-    border-radius: 0.25rem;
-    margin: 1rem;
+    @extend .outlined;
 }
 
-.code-editor {
-    padding: 1rem;
+.code-editor-wrapper * {
+    font-family: 'JetBrains Mono', sans-serif;
+}
+
+:global(.cm-editor .cm-gutters) {
+    background-color: unset;
+    color: unset;
+    border: none;
+}
+
+:global(.cm-editor .cm-scroller) {
+    gap: 8px;
 }

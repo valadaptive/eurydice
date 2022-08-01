@@ -4,7 +4,7 @@ import type {JSX} from 'preact';
 import {useRef, useEffect} from 'preact/hooks';
 
 import {EditorState} from '@codemirror/state';
-import {EditorView, keymap} from '@codemirror/view';
+import {EditorView, highlightActiveLine, keymap, lineNumbers} from '@codemirror/view';
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands';
 import {
     syntaxHighlighting,
@@ -40,34 +40,74 @@ const theme = EditorView.theme({
 
 const CodeEditor = (): JSX.Element => {
     const editorRef = useRef<HTMLDivElement>(null);
-    const view = useRef<EditorView>();
+    const outputRef = useRef<HTMLDivElement>(null);
+    let worker: Worker;
 
     useEffect(() => {
-        const v = new EditorView({state: EditorState.create({
-            extensions: [
-                keymap.of([
-                    ...closeBracketsKeymap,
-                    ...defaultKeymap,
-                    ...completionKeymap,
-                    ...historyKeymap
-                ]),
-                history(),
-                foldGutter(),
-                indentOnInput(),
-                bracketMatching(),
-                closeBrackets(),
-                autocompletion(),
-                syntaxHighlighting(debugStyle),
-                theme,
-                eurydice()
-            ]
-        })});
-        view.current = v;
-        editorRef.current!.appendChild(v.dom);
+
+
+        return () => {
+            worker.terminate();
+        };
+    });
+
+    useEffect(() => {
+        worker = new Worker(new URL('./worker.ts', import.meta.url));
+
+        const outputView = new EditorView({
+            state: EditorState.create({
+                extensions: [
+                    foldGutter(),
+                    EditorView.lineWrapping,
+                    theme,
+                    EditorView.editable.of(false)
+                ]
+            })
+        });
+
+        worker.addEventListener('message', (event) => {
+            if (event.data.output) {
+                outputView.dispatch({changes: {from: 0, to: outputView.state.doc.length, insert: event.data.output}});
+            }
+        });
+
+        const editorView = new EditorView({
+            state: EditorState.create({
+                extensions: [
+                    keymap.of([
+                        ...closeBracketsKeymap,
+                        ...defaultKeymap,
+                        ...completionKeymap,
+                        ...historyKeymap
+                    ]),
+                    history(),
+                    foldGutter(),
+                    indentOnInput(),
+                    bracketMatching(),
+                    lineNumbers(),
+                    EditorView.lineWrapping,
+                    closeBrackets(),
+                    autocompletion(),
+                    syntaxHighlighting(debugStyle),
+                    highlightActiveLine(),
+                    theme,
+                    eurydice(),
+                    EditorView.updateListener.of((e) => {
+                        worker.postMessage({prog: e.state.doc.toString()});
+                        outputView.dispatch({changes: {from: 0, to: outputView.state.doc.length}});
+                    })
+                ]
+            })
+        });
+        editorRef.current!.appendChild(editorView.dom);
+        outputRef.current!.appendChild(outputView.dom);
     }, []);
 
     return (
-        <div className={style['code-editor-wrapper']} ref={editorRef}></div>
+        <>
+            <div className={style['code-editor-wrapper']} ref={editorRef}></div>
+            <div className={style['code-editor-wrapper']} ref={outputRef}></div>
+        </>
     );
 };
 

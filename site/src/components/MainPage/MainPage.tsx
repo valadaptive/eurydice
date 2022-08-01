@@ -18,7 +18,7 @@ const MainPage = (): JSX.Element => (
             </FlexHorizontalMobile>
 
             {/* description */}
-            <h2 className={style.description}>There should probably be a short description here</h2>
+            <h2 className={style.description}>Half-baked programming language disguised as a dice engine</h2>
 
             {/* buttons */}
             <FlexHorizontal>

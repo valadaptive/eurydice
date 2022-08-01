@@ -14,7 +14,6 @@ const MainPage = (): JSX.Element => (
                 <Logo width="96" height="96" style="flex-shrink: 0;"/>
                 <FlexHorizontal class={style.logoTextDiv}>
                     <h1 className={style.logoText}>eurydice</h1>
-                    <p>v0.0.1</p>
                 </FlexHorizontal>
             </FlexHorizontalMobile>
 

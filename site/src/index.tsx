@@ -1,10 +1,16 @@
 import 'normalize.css';
-import './colors.scss';
+import './global.module.scss';
+import './fonts.scss';
 
-import {render} from 'preact';
+import {render, JSX} from 'preact';
+import {Router, Route} from 'preact-router';
 
-import CodeEditor from './components/CodeEditor/CodeEditor';
+import MainPage from './components/MainPage/MainPage';
 
-render(<div>
-    <CodeEditor />
-</div>, document.body);
+const Main = (): JSX.Element => (
+    <Router>
+        <Route path="/" component={MainPage} />
+    </Router>
+);
+
+render(<Main />, document.body);

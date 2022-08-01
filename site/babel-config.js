@@ -15,6 +15,7 @@ module.exports = function (browsers) {
         ],
         plugins: [
             'babel-plugin-macros',
+            '@babel/plugin-transform-react-jsx-source',
             [
                 '@babel/plugin-transform-react-jsx',
                 {pragma: 'h', pragmaFrag: 'Fragment'}
@@ -26,6 +27,9 @@ module.exports = function (browsers) {
                 exclude: '**/node_modules/**',
                 presets: [
                     ['@babel/preset-typescript', {jsxPragma: 'h'}]
+                ],
+                plugins: [
+                    '@babel/plugin-transform-react-jsx-source'
                 ]
             }
         ]

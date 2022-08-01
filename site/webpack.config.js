@@ -260,7 +260,7 @@ function baseConfig () {
 
         mode: isProd ? 'production' : 'development',
 
-        devtool: isWatch ? 'eval-cheap-module-source-map' : 'source-map',
+        devtool: 'source-map',
 
         node: false
     };

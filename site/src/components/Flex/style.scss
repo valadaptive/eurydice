@@ -1,0 +1,40 @@
+@import '../../global.module';
+
+.flexv {
+    display: flex;
+    align-self: stretch;
+    flex-direction: column;
+    padding: 0;
+    gap: 16px;
+}
+
+.flexh {
+    display: flex;
+    align-self: stretch;
+    flex-direction: row;
+    padding: 0;
+    gap: 16px;
+}
+
+.flexhm {
+    display: flex;
+    align-self: stretch;
+    flex-direction: row;
+    padding: 0;
+    gap: 16px;
+}
+
+@media screen and (max-width: $--mobile-width) {
+    .flexhm {
+        display: flex;
+        align-self: stretch;
+        flex-direction: column;
+        padding: 0;
+        gap: 16px;
+    }
+}
+
+.flexf {
+    align-self: stretch;
+    flex: 1;
+}

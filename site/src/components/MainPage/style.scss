@@ -1,0 +1,67 @@
+@import '../../global.module';
+
+.logo {
+    gap: 32px;
+    height: 96px;
+    flex-shrink: 0;
+}
+
+.logoText {
+    margin: 0;
+    font-size: 80px;
+    font-family: 'Poppins', sans-serif;
+}
+
+@media screen and (max-width: $--mobile-width) {
+    .logo {
+        height: auto;
+        align-items: center;
+    }
+
+    .logoTextDiv {
+        justify-content: center;
+    }
+
+    .logoText {
+        font-size: 64px;
+    }
+}
+
+.card {
+    border: 2px solid var(--foreground);
+    border-radius: 8px;
+    padding: 32px;
+    flex-basis: 33%;
+}
+
+.card * {
+    margin: 0;
+}
+
+.description {
+    margin: 0;
+    font-size: 24px;
+}
+
+.button {
+    padding: 10px;
+    border: 2px solid var(--foreground);
+    border-radius: 8px;
+}
+
+.nomargin {
+    margin: 0;
+}
+
+.link:after {
+    content: "->";
+    display: inline-block;
+
+    transition: transform 0.1s linear;
+    transform: translateX(0.3em);
+}
+
+.link:hover::after {
+    transition: transform 0.1s linear;
+    transform: translateX(0.5em);
+}

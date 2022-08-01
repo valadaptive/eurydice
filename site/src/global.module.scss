@@ -1,0 +1,61 @@
+$--mobile-width-px: 800;
+$--mobile-width: $--mobile-width-px + 0px;
+
+:export {
+    mobileWidth: $--mobile-width-px;
+}
+
+.foo {
+    color: grey;
+}
+
+:global(:root) {
+    --red: #c21b48;
+    --red-light: #f43550;
+    --red-dark: #960944;
+
+    --orange: #f45b35;
+    --orange-light: #fc9647;
+    --orange-dark: #d42a26;
+
+    --grey: #767e9c;
+    --grey-light: #a2acbc;
+    --grey-dark: #4a4872;
+    --grey-extra-light: #dbe7ee;
+    --grey-extra-dark: #251f3b;
+
+    --green: #48bc7f;
+    --green-light: #98e478;
+    --green-dark: #228e74;
+
+    --magenta: #b834cc;
+    --magenta-light: #e359bf;
+    --magenta-dark: #771cb6;
+    --magenta-extra-dark: #421a7e;
+
+    --blue: #1f9bd9;
+    --blue-light: #56d9d9;
+    --blue-dark: #324ab9;
+
+    --background: white;
+    --foreground: black;
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+}
+
+/* Things that are probably helpful everywhere */
+
+.outlined {
+    border: 2px solid var(--foreground);
+    border-radius: 8px;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+    :global(:root) {
+        --background: black;
+        --foreground: white;
+    }
+}

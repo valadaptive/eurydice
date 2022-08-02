@@ -20,15 +20,16 @@ interface IState {
     atPageTop: boolean;
 }
 
-class Header extends Component<never, IState> {
+class Header extends Component<Record<string, never>, IState> {
     resizeListener: () => void;
     scrollListener: () => void;
+
     constructor () {
         super();
         this.state = {
             hidden: true,
             width: document.body.clientWidth,
-            atPageTop: window.pageYOffset === 0
+            atPageTop: window.scrollY === 0
         };
 
         this.resizeListener = this.onResize.bind(this);
@@ -43,7 +44,7 @@ class Header extends Component<never, IState> {
     }
 
     onScroll (): void {
-        this.setState({atPageTop: window.pageYOffset === 0});
+        this.setState({atPageTop: window.scrollY === 0});
     }
 
     componentWillUnmount (): void {

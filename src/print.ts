@@ -6,10 +6,10 @@ const printValue = (value: Value): string => {
         case 'string': return JSON.stringify(value);
         case 'object': {
             if (value === null) return '()';
-            return `[${value.join('. ')}]`;
+            return `[${value.map(elem => printValue(elem)).join('. ')}]`;
         }
         // TODO: store debug info for functions and map back to source
-        case 'function': return '[function]';
+        case 'function': return '(function)';
     }
 };
 

@@ -1,113 +1,58 @@
-import style from './style.scss';
+import type {JSX, VNode} from 'preact';
+import {Component} from 'preact';
+import {Text} from '@codemirror/state';
+import CodeView from '../CodeView/CodeView';
+import {FlexVertical} from '../Flex/Flex';
 
-import type {JSX} from 'preact';
-import {useRef, useEffect} from 'preact/hooks';
+interface ICodeEditorProps {
+    doc?: string,
+    readonly?: boolean,
+    onUpdate?: (doc: Text) => void;
+}
 
-import {EditorState} from '@codemirror/state';
-import {EditorView, highlightActiveLine, keymap, lineNumbers} from '@codemirror/view';
-import {defaultKeymap, history, historyKeymap} from '@codemirror/commands';
-import {
-    syntaxHighlighting,
-    foldGutter,
-    HighlightStyle,
-    indentOnInput,
-    bracketMatching
-} from '@codemirror/language';
-import {autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap} from '@codemirror/autocomplete';
-import {tags as t} from '@lezer/highlight';
+interface ICodeEditorState {
+    doc: string,
+    output: string,
+    worker: Worker
+}
 
-import eurydice, {tags as eurydiceTags} from '../../lang-support/language';
+class CodeEditor extends Component<ICodeEditorProps, ICodeEditorState> {
+    state: ICodeEditorState;
 
-const debugStyle = HighlightStyle.define([
-    {tag: t.name, color: 'var(--magenta-light)'},
-    {tag: eurydiceTags.argumentName, color: 'var(--red-light)'},
-    {tag: t.number, color: 'var(--magenta-dark)'},
-    {tag: t.string, color: 'var(--orange)'},
-    {tag: t.operator, color: 'var(--blue-dark)'},
-    {tag: t.keyword, color: 'var(--blue)'},
-    {tag: t.comment, color: 'var(--grey)'},
-    {tag: t.bracket, color: 'var(--grey-dark)'}
-]);
+    constructor (props: ICodeEditorProps) {
+        super(props);
 
-const theme = EditorView.theme({
-    '&': {
-        padding: '1rem'
-    },
-    '&.cm-editor.cm-focused': {
-        outline: 'none'
-    }
-});
-
-const CodeEditor = (): JSX.Element => {
-    const editorRef = useRef<HTMLDivElement>(null);
-    const outputRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const worker = new Worker(new URL('./worker.ts', import.meta.url));
-
-        const outputView = new EditorView({
-            state: EditorState.create({
-                extensions: [
-                    foldGutter(),
-                    EditorView.lineWrapping,
-                    theme,
-                    EditorView.editable.of(false)
-                ]
-            })
-        });
-
-        worker.addEventListener('message', (event) => {
-            if (event.data.output) {
-                outputView.dispatch({changes: {from: 0, to: outputView.state.doc.length, insert: event.data.output}});
-            }
-        });
-
-        const editorState = EditorState.create({
-            extensions: [
-                keymap.of([
-                    ...closeBracketsKeymap,
-                    ...defaultKeymap,
-                    ...completionKeymap,
-                    ...historyKeymap
-                ]),
-                history(),
-                foldGutter(),
-                indentOnInput(),
-                bracketMatching(),
-                lineNumbers(),
-                EditorView.lineWrapping,
-                closeBrackets(),
-                autocompletion(),
-                syntaxHighlighting(debugStyle),
-                highlightActiveLine(),
-                theme,
-                eurydice(),
-                EditorView.updateListener.of((e) => {
-                    if (!e.docChanged) return;
-                    worker.postMessage({prog: e.state.doc.toString()});
-                })
-            ],
-            doc: '2d20'
-        });
-
-        const editorView = new EditorView({
-            state: editorState
-        });
-        editorRef.current!.appendChild(editorView.dom);
-        outputRef.current!.appendChild(outputView.dom);
-        worker.postMessage({prog: editorState.doc.toString()});
-
-        return () => {
-            worker.terminate();
+        this.state = {
+            doc: props.doc || '',
+            output: '',
+            worker: new Worker(new URL('./worker.ts', import.meta.url))
         };
-    }, []);
 
-    return (
-        <>
-            <div className={style['code-editor-wrapper']} ref={editorRef}></div>
-            <div className={style['code-editor-wrapper']} ref={outputRef}></div>
-        </>
-    );
-};
+        if (props.doc) {
+            this.onUpdate(props.doc);
+        }
+
+        this.state.worker.addEventListener('message', this.onExec.bind(this));
+    }
+
+    onUpdate (doc: Text | string): void {
+        this.setState({doc: doc.toString()});
+        this.state.worker.postMessage(doc.toString());
+    }
+
+    onExec ({data: {success: _success, output}}: { data: { success: boolean, output: string } }): void {
+        this.setState({output: output});
+    }
+
+    render (): JSX.Element {
+        return <>
+            <FlexVertical>
+                <CodeView readonly={this.props.readonly || false} highlight={true} onUpdate={this.onUpdate.bind(this)}
+                    doc={this.state.doc}/>
+                <CodeView readonly={true} highlight={false} doc={this.state.output}/>
+            </FlexVertical>
+        </>;
+    }
+}
 
 export default CodeEditor;

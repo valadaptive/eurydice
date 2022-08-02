@@ -49,7 +49,7 @@ class Header extends Component {
 
     render (): JSX.Element {
         return (
-            <div className={classNames(style.header, {[style.headerScrolled]: this.state.scroll === 0})}>
+            <div className={classNames(style.header, {[style.headerScrolled]: this.state.scroll !== 0})}>
                 <FlexHorizontal class={style.logoDiv}>
                     <Logo height="100%" width="100%" style="width: 1.15rem; height: 1.15rem;"/>
                     <p>eurydice <sup>v{pkg.version}</sup></p>

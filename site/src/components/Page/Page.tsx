@@ -2,7 +2,7 @@ import style from './style.scss';
 
 import type {JSX, ComponentChildren} from 'preact';
 
-import Header from '../Header/Header'
+import Header from '../Header/Header';
 
 const Page = (props: {children: ComponentChildren}): JSX.Element => (
     <>

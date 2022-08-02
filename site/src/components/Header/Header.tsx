@@ -7,7 +7,7 @@ import {Component} from 'preact';
 
 import Logo from '../Logo/Logo.svg';
 import Icon from '../Icon/Icon';
-import {FlexHorizontal, FlexVertical} from '../Flex/Flex';
+import {FlexVertical} from '../Flex/Flex';
 
 const items = (
     <><a href="https://github.com/valadaptive/eurydice">Source</a></>

@@ -10,7 +10,7 @@ import Icon from '../Icon/Icon';
 import {FlexHorizontal, FlexVertical} from '../Flex/Flex';
 
 const items = (
-    <><a href="/docs/installation">Installation</a><a href="/docs">Documentation</a><a>Source</a></>
+    <><a href="https://github.com/valadaptive/eurydice">Source</a></>
 );
 
 interface IState {

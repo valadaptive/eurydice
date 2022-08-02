@@ -23,8 +23,7 @@ const MainPage = (): JSX.Element => (
 
             {/* buttons */}
             <FlexHorizontal>
-                <a class={style.button}>Get started</a>
-                <a class={style.button}>View source</a>
+                <a class={style.button} href="https://github.com/valadaptive/eurydice">View source</a>
             </FlexHorizontal>
         </FlexVertical>
 

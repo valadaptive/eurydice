@@ -12,7 +12,7 @@ const MainPage = (): JSX.Element => (
         <FlexVertical style="gap: 32px;">
             {/* logo */}
             <FlexHorizontalMobile class={style.logo}>
-                <Logo width="96" height="96" style="flex-shrink: 0;"/>
+                <Logo width="100%" height="100%" style="height: 6rem; width: 6rem;"/>
                 <FlexHorizontal class={style.logoTextDiv}>
                     <h1 className={style.logoText}>eurydice</h1>
                 </FlexHorizontal>
@@ -53,7 +53,7 @@ const MainPage = (): JSX.Element => (
 
         {/* try */}
         <FlexVertical>
-            <h2 style="font-size: 36px;" class={style.nomargin}>Try eurydice</h2>
+            <h2 style="font-size: 2rem;" class={style.nomargin}>Try eurydice</h2>
             <CodeEditor/>
         </FlexVertical>
     </Page>

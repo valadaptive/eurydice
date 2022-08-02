@@ -1,14 +1,14 @@
 @import '../../global.module';
 
 .logo {
-    gap: 32px;
-    height: 96px;
+    gap: 1.25rem;
+    height: 6rem;
     flex-shrink: 0;
 }
 
 .logoText {
     margin: 0;
-    font-size: 80px;
+    font-size: 5rem;
     font-family: 'Poppins', sans-serif;
 }
 
@@ -40,7 +40,6 @@
 
 .description {
     margin: 0;
-    font-size: 24px;
     font-weight: 500;
 }
 

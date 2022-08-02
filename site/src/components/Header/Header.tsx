@@ -51,10 +51,10 @@ class Header extends Component {
         // But ESLint does not complain, so:
         return (
             <div className={(this.state.scroll === 0) ? style.header : style.header + ' ' + style.headerScrolled}>
-                <div className={style.logoDiv}>
-                    <Logo height="24" width="24"/>
+                <FlexHorizontal class={style.logoDiv}>
+                    <Logo height="100%" width="100%" style="width: 1.15rem; height: 1.15rem;"/>
                     <p>eurydice <sup>v{pkg.version}</sup></p>
-                </div>
+                </FlexHorizontal>
                 {
                     (Number(variables.mobileWidth) >= document.body.clientWidth) ?
                         <FlexVertical style="align-self: center; align-items: end;">

@@ -28,13 +28,10 @@
     flex-grow: 1;
     height: fit-content;
 
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 0;
-    gap: 8px;
+    gap: 0.25rem;
 
     font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
 }
 
 .logoDiv > * {

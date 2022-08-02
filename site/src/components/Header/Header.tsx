@@ -40,7 +40,7 @@ class Header extends Component {
     }
 
     onScroll (): void {
-        this.setState({scroll: window.pageYOffset});
+        this.setState({atPageTop: window.pageYOffset === 0});
     }
 
     shouldComponentUpdate (_nextProps: Readonly<unknown>, nextState: Readonly<IState>): boolean {

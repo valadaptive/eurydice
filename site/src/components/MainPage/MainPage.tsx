@@ -4,7 +4,7 @@ import type {JSX} from 'preact';
 
 import Page from '../Page/Page';
 import Logo from '../Logo/Logo.svg';
-import {FlexHorizontal, FlexHorizontalMobile, FlexVertical, FlexFill} from '../Flex/Flex';
+import {FlexHorizontal, FlexHorizontalMobile, FlexVertical} from '../Flex/Flex';
 import CodeEditor from '../CodeEditor/CodeEditor';
 
 const MainPage = (): JSX.Element => (

@@ -17,7 +17,7 @@ const items = (
 interface IState {
     hidden: boolean,
     width: number;
-    scroll: number;
+    atPageTop: boolean;
 }
 
 class Header extends Component {
@@ -25,7 +25,11 @@ class Header extends Component {
 
     constructor () {
         super();
-        this.state = {hidden: true, width: document.body.clientWidth, scroll: window.pageYOffset};
+        this.state = {
+            hidden: true,
+            width: document.body.clientWidth,
+            atPageTop: window.pageYOffset === 0
+        };
 
         window.addEventListener('resize', this.onResize.bind(this));
         window.addEventListener('scroll', this.onScroll.bind(this));
@@ -43,19 +47,19 @@ class Header extends Component {
         return (
             (this.state.hidden !== nextState.hidden) ||
             (this.state.width !== nextState.width) ||
-            (this.state.scroll !== nextState.scroll)
+            (this.state.atPageTop !== nextState.atPageTop)
         );
     }
 
     render (): JSX.Element {
         return (
-            <div className={classNames(style.header, {[style.headerScrolled]: this.state.scroll !== 0})}>
+            <div className={classNames(style.header, {[style.headerScrolled]: !this.state.atPageTop})}>
                 <FlexHorizontal class={style.logoDiv}>
                     <Logo height="100%" width="100%" style="width: 1.15rem; height: 1.15rem;"/>
                     <p>eurydice <sup>v{pkg.version}</sup></p>
                 </FlexHorizontal>
                 {
-                    (Number(variables.mobileWidth) >= document.body.clientWidth) ?
+                    (Number(variables.mobileWidth) >= this.state.width) ?
                         <FlexVertical style="align-self: center; align-items: end;">
                             <a href="javascript:void(0)"
                                 onClick={(): void => {

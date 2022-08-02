@@ -7,7 +7,7 @@ const FlexHorizontal = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div class={style.flexh + ' ' + props.class} style={props.style}>
+    <div class={props.class + ' ' + style.flexh} style={props.style}>
         {props.children}
     </div>
 );
@@ -17,7 +17,7 @@ const FlexHorizontalMobile = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexhm + ' ' + props.class} style={props.style}>
+    <div className={props.class + ' ' + style.flexhm} style={props.style}>
         {props.children}
     </div>
 );
@@ -27,7 +27,7 @@ const FlexVertical = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexv + ' ' + props.class} style={props.style}>
+    <div className={props.class + ' ' + style.flexv} style={props.style}>
         {props.children}
     </div>
 );
@@ -37,7 +37,7 @@ const FlexFill = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexf + ' ' + props.class} style={props.style}>
+    <div className={props.class + ' ' + style.flexf} style={props.style}>
         {props.children}
     </div>
 );

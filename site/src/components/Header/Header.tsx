@@ -4,6 +4,7 @@ import pkg from '/package.json';
 
 import type {JSX} from 'preact';
 import {Component} from 'preact';
+import classNames from 'classnames';
 
 import Logo from '../Logo/Logo.svg';
 import Icon from '../Icon/Icon';
@@ -47,10 +48,8 @@ class Header extends Component {
     }
 
     render (): JSX.Element {
-        // This is probably not how you do it.
-        // But ESLint does not complain, so:
         return (
-            <div className={(this.state.scroll === 0) ? style.header : style.header + ' ' + style.headerScrolled}>
+            <div className={classNames(style.header, {[style.headerScrolled]: this.state.scroll === 0})}>
                 <div className={style.logoDiv}>
                     <Logo height="24" width="24"/>
                     <p>eurydice <sup>v{pkg.version}</sup></p>

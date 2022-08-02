@@ -46,6 +46,7 @@
     "@codemirror/language": "^6.2.0",
     "@lezer/highlight": "^1.0.0",
     "@lezer/lr": "^1.2.0",
+    "classnames": "^2.3.1",
     "preact": "^10.10.0",
     "preact-router": "^4.1.0"
   }

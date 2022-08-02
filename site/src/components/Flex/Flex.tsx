@@ -1,13 +1,14 @@
 import style from './style.scss';
 
 import type {JSX, ComponentChildren} from 'preact';
+import classNames from 'classnames';
 
 const FlexHorizontal = (props: {
     children: ComponentChildren,
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div class={style.flexh + ' ' + props.class} style={props.style}>
+    <div class={classNames(style.flexh, props.class)} style={props.style}>
         {props.children}
     </div>
 );
@@ -17,7 +18,7 @@ const FlexHorizontalMobile = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexhm + ' ' + props.class} style={props.style}>
+    <div className={classNames(style.flexhm, props.class)} style={props.style}>
         {props.children}
     </div>
 );
@@ -27,7 +28,7 @@ const FlexVertical = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexv + ' ' + props.class} style={props.style}>
+    <div className={classNames(style.flexv, props.class)} style={props.style}>
         {props.children}
     </div>
 );
@@ -37,7 +38,7 @@ const FlexFill = (props: {
     style?: string,
     class?: string
 }): JSX.Element => (
-    <div className={style.flexf + ' ' + props.class} style={props.style}>
+    <div className={classNames(style.flexf, props.class)} style={props.style}>
         {props.children}
     </div>
 );

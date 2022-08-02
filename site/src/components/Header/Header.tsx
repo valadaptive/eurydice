@@ -20,9 +20,9 @@ interface IState {
     atPageTop: boolean;
 }
 
-class Header extends Component {
-    state: IState;
-
+class Header extends Component<never, IState> {
+    resizeListener: () => void;
+    scrollListener: () => void;
     constructor () {
         super();
         this.state = {
@@ -31,8 +31,11 @@ class Header extends Component {
             atPageTop: window.pageYOffset === 0
         };
 
-        window.addEventListener('resize', this.onResize.bind(this));
-        window.addEventListener('scroll', this.onScroll.bind(this));
+        this.resizeListener = this.onResize.bind(this);
+        this.scrollListener = this.onScroll.bind(this);
+
+        window.addEventListener('resize', this.resizeListener);
+        window.addEventListener('scroll', this.scrollListener);
     }
 
     onResize (): void {
@@ -41,6 +44,11 @@ class Header extends Component {
 
     onScroll (): void {
         this.setState({atPageTop: window.pageYOffset === 0});
+    }
+
+    componentWillUnmount (): void {
+        window.removeEventListener('resize', this.resizeListener);
+        window.removeEventListener('scroll', this.scrollListener);
     }
 
     shouldComponentUpdate (_nextProps: Readonly<unknown>, nextState: Readonly<IState>): boolean {

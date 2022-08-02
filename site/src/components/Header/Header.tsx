@@ -20,7 +20,7 @@ interface IState {
     atPageTop: boolean;
 }
 
-class Header extends Component<never, IState> {
+class Header extends Component<Record<string, never>, IState> {
     resizeListener: () => void;
     scrollListener: () => void;
     constructor () {

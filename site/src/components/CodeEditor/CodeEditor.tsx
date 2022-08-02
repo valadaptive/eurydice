@@ -62,36 +62,40 @@ const CodeEditor = (): JSX.Element => {
             }
         });
 
+        const editorState = EditorState.create({
+            extensions: [
+                keymap.of([
+                    ...closeBracketsKeymap,
+                    ...defaultKeymap,
+                    ...completionKeymap,
+                    ...historyKeymap
+                ]),
+                history(),
+                foldGutter(),
+                indentOnInput(),
+                bracketMatching(),
+                lineNumbers(),
+                EditorView.lineWrapping,
+                closeBrackets(),
+                autocompletion(),
+                syntaxHighlighting(debugStyle),
+                highlightActiveLine(),
+                theme,
+                eurydice(),
+                EditorView.updateListener.of((e) => {
+                    if (!e.docChanged) return;
+                    worker.postMessage({prog: e.state.doc.toString()});
+                })
+            ],
+            doc: '2d20'
+        });
+
         const editorView = new EditorView({
-            state: EditorState.create({
-                extensions: [
-                    keymap.of([
-                        ...closeBracketsKeymap,
-                        ...defaultKeymap,
-                        ...completionKeymap,
-                        ...historyKeymap
-                    ]),
-                    history(),
-                    foldGutter(),
-                    indentOnInput(),
-                    bracketMatching(),
-                    lineNumbers(),
-                    EditorView.lineWrapping,
-                    closeBrackets(),
-                    autocompletion(),
-                    syntaxHighlighting(debugStyle),
-                    highlightActiveLine(),
-                    theme,
-                    eurydice(),
-                    EditorView.updateListener.of((e) => {
-                        worker.postMessage({prog: e.state.doc.toString()});
-                        outputView.dispatch({changes: {from: 0, to: outputView.state.doc.length}});
-                    })
-                ]
-            })
+            state: editorState
         });
         editorRef.current!.appendChild(editorView.dom);
         outputRef.current!.appendChild(outputView.dom);
+        worker.postMessage({prog: editorState.doc.toString()});
 
         return () => {
             worker.terminate();

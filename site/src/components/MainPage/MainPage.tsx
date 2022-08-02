@@ -27,7 +27,7 @@ const MainPage = (): JSX.Element => (
             </FlexHorizontal>
         </FlexVertical>
 
-        {/* TODO !!do not merge!! cards */}
+        {/* cards
         <FlexHorizontalMobile style="width: 100%;">
             <FlexFill class={style.card}>
                 <FlexVertical>
@@ -49,6 +49,7 @@ const MainPage = (): JSX.Element => (
                 </FlexVertical>
             </FlexFill>
         </FlexHorizontalMobile>
+        */}
 
         {/* try */}
         <FlexVertical>

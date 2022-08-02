@@ -41,18 +41,9 @@ const theme = EditorView.theme({
 const CodeEditor = (): JSX.Element => {
     const editorRef = useRef<HTMLDivElement>(null);
     const outputRef = useRef<HTMLDivElement>(null);
-    let worker: Worker;
 
     useEffect(() => {
-
-
-        return () => {
-            worker.terminate();
-        };
-    });
-
-    useEffect(() => {
-        worker = new Worker(new URL('./worker.ts', import.meta.url));
+        const worker = new Worker(new URL('./worker.ts', import.meta.url));
 
         const outputView = new EditorView({
             state: EditorState.create({
@@ -101,6 +92,10 @@ const CodeEditor = (): JSX.Element => {
         });
         editorRef.current!.appendChild(editorView.dom);
         outputRef.current!.appendChild(outputView.dom);
+
+        return () => {
+            worker.terminate();
+        };
     }, []);
 
     return (

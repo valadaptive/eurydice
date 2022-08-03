@@ -1,4 +1,4 @@
-import type {JSX, VNode} from 'preact';
+import type {JSX} from 'preact';
 import {Component} from 'preact';
 import {Text} from '@codemirror/state';
 import CodeView from '../CodeView/CodeView';
@@ -11,7 +11,7 @@ interface ICodeEditorProps {
 }
 
 interface ICodeEditorState {
-    doc: string,
+    doc: Text | string,
     output: string,
     worker: Worker
 }
@@ -36,12 +36,12 @@ class CodeEditor extends Component<ICodeEditorProps, ICodeEditorState> {
     }
 
     onUpdate (doc: Text | string): void {
-        this.setState({doc: doc.toString()});
+        this.setState({doc});
         this.state.worker.postMessage(doc.toString());
     }
 
     onExec ({data: {success: _success, output}}: { data: { success: boolean, output: string } }): void {
-        this.setState({output: output});
+        this.setState({output});
     }
 
     render (): JSX.Element {

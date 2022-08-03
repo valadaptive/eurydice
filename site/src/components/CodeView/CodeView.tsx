@@ -1,9 +1,9 @@
 import style from './style.scss';
 
-import type {JSX, RefObject} from 'preact';
-import {Component, createRef} from 'preact';
+import type {JSX} from 'preact';
+import {useRef, useEffect, useLayoutEffect, useMemo} from 'preact/hooks';
 
-import {EditorState, Text} from '@codemirror/state';
+import {EditorState, Text, Extension, StateEffect} from '@codemirror/state';
 import {EditorView, highlightActiveLine, keymap, lineNumbers} from '@codemirror/view';
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands';
 import {
@@ -39,94 +39,93 @@ const theme = EditorView.theme({
 });
 
 interface ICodeEditorProps {
-    doc?: string,
+    doc?: Text | string,
     readonly: boolean,
     highlight: boolean,
     onUpdate?: (doc: Text) => void;
 }
 
-interface ICodeEditorState {
-    editorView: EditorView
-}
+const makeExtensionConfig = (readonly: boolean, highlight: boolean, onUpdate?: (doc: Text) => void): Extension => [
+    keymap.of([
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...completionKeymap,
+        ...historyKeymap
+    ]),
+    readonly ? [
+        EditorView.contentAttributes.of({contenteditable: 'false'})
+    ] : [
+        indentOnInput(),
+        history(),
+        closeBrackets(),
+        autocompletion(),
+        highlightActiveLine()
+    ],
+    highlight ? [
+        syntaxHighlighting(debugStyle),
+        eurydice()
+    ] : [],
+    foldGutter(),
+    bracketMatching(),
+    lineNumbers(),
+    theme,
+    EditorView.lineWrapping,
+    EditorView.updateListener.of((e) => {
+        if (!e.docChanged) return;
+        if (onUpdate !== undefined) {
+            onUpdate(e.state.doc);
+        }
+    })
+];
 
-class CodeView extends Component<ICodeEditorProps, ICodeEditorState> {
-    state: ICodeEditorState;
-    editorRef: RefObject<HTMLDivElement> = createRef<HTMLDivElement>();
+const CodeView = ({doc, readonly, highlight, onUpdate}: ICodeEditorProps): JSX.Element => {
+    const editorViewRef = useRef<EditorView>();
+    const editorRef = useRef<HTMLDivElement>(null);
 
-    constructor (props: ICodeEditorProps) {
-        super();
+    // Update the list of extensions when props that affect those extensions change
+    const extensions = useMemo(
+        () => makeExtensionConfig(readonly, highlight, onUpdate),
+        [readonly, highlight, onUpdate]
+    );
 
-        console.log(props);
-
+    // Initialize editor state
+    useLayoutEffect(() => {
         const editorState = EditorState.create({
-            extensions: [
-                keymap.of([
-                    ...closeBracketsKeymap,
-                    ...defaultKeymap,
-                    ...completionKeymap,
-                    ...historyKeymap
-                ]),
-                props.readonly ? [
-                    EditorView.contentAttributes.of({contenteditable: 'false'})
-                ] : [
-                    indentOnInput(),
-                    history(),
-                    closeBrackets(),
-                    autocompletion(),
-                    highlightActiveLine()
-                ],
-                !props.highlight ? [] : [
-                    syntaxHighlighting(debugStyle),
-                    eurydice()
-                ],
-                foldGutter(),
-                bracketMatching(),
-                lineNumbers(),
-                theme,
-                EditorView.lineWrapping,
-                EditorView.updateListener.of((e) => {
-                    if (!e.docChanged) return;
-                    if (props.onUpdate !== undefined) {
-                        props.onUpdate(e.state.doc);
-                    }
-                })
-            ],
-            doc: props.doc
+            extensions,
+            doc
         });
 
-        props.doc = props.doc || '';
+        editorViewRef.current = new EditorView({
+            state: editorState,
+            parent: editorRef?.current ?? undefined
+        });
+    }, []);
 
-        this.state = {
-            editorView: new EditorView({
-                state: editorState
-            })
-        };
-    }
+    const editorView = editorViewRef.current;
 
-    shouldComponentUpdate (nextProps: ICodeEditorProps, _nextState: ICodeEditorState): boolean {
-        return (nextProps.doc !== this.props.doc);
-    }
+    // If the extensions change (or on first run), update the editor view
+    useEffect(() => {
+        editorView?.dispatch({effects: StateEffect.reconfigure.of(extensions)});
+    }, [extensions]);
 
-    render (): JSX.Element {
-        this.state.editorView.dispatch({
+    // If the doc changes, update the editor view
+    // TODO: there's a potential infinite loop here if onUpdate keeps setting doc to something else
+    useEffect(() => {
+        if (editorView?.state.doc === doc) return;
+        // Compare strings as fallback
+        if (editorView?.state.doc.toString() !== doc) return;
+        editorView?.dispatch({
             changes: {
                 from: 0,
-                to: this.state.editorView.state.doc.length,
-                insert: this.props.doc
-            },
-            selection: this.state.editorView.state.selection
+                to: editorView.state.doc.length,
+                insert: doc
+            }
         });
+    }, [doc]);
 
-        return (
-            <>
-                <div className={style['code-editor-wrapper']} ref={this.editorRef}></div>
-            </>
-        );
-    }
-
-    componentDidMount (): void {
-        this.editorRef.current!.appendChild(this.state.editorView.dom);
-    }
-}
+    // The rendered component doesn't depend on any props or anything; we update the editor state itself based on props
+    // via useEffect. That means we can just never recompute the returned component.
+    return useMemo(() => <div className={style['code-editor-wrapper']} ref={editorRef}></div>, undefined);
+};
 
 export default CodeView;

@@ -113,7 +113,7 @@ const CodeView = ({doc, readonly, highlight, onUpdate}: ICodeEditorProps): JSX.E
     useEffect(() => {
         if (editorView?.state.doc === doc) return;
         // Compare strings as fallback
-        if (editorView?.state.doc.toString() !== doc) return;
+        if (editorView?.state.doc.toString() === doc) return;
         editorView?.dispatch({
             changes: {
                 from: 0,

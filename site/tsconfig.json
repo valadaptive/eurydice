@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "preact",
+    "target": "es2020",
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "types": [],
+    "strictNullChecks": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "allowJs": true,
+    "module": "es2020",
+    "outDir": "build"
+  },
+  "include": [
+    "src/**/*",
+    "src/global.d.ts"
+  ]
+}

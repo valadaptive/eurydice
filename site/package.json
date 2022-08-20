@@ -1,0 +1,53 @@
+{
+  "name": "@eurydice/site",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "gen-grammar": "lezer-generator src/lang-support/eurydice.grammar --output src/lang-support/generated/parser",
+    "dev": "webpack serve",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.18.6",
+    "@babel/plugin-transform-react-jsx": "^7.18.6",
+    "@babel/plugin-transform-react-jsx-source": "^7.18.6",
+    "@babel/preset-env": "^7.18.6",
+    "@babel/preset-typescript": "^7.18.6",
+    "@lezer/generator": "^1.1.0",
+    "@svgr/webpack": "^6.2.1",
+    "autoprefixer": "^10.4.7",
+    "babel-loader": "^8.2.5",
+    "babel-plugin-macros": "^3.1.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.7.1",
+    "css-minimizer-webpack-plugin": "^4.0.0",
+    "fork-ts-checker-webpack-plugin": "^7.2.12",
+    "html-webpack-plugin": "^5.5.0",
+    "mini-css-extract-plugin": "^2.6.1",
+    "postcss-loader": "^7.0.1",
+    "progress-bar-webpack-plugin": "^2.1.0",
+    "sass": "^1.53.0",
+    "sass-loader": "^13.0.2",
+    "size-plugin": "^3.0.0",
+    "style-loader": "^3.3.1",
+    "terser-webpack-plugin": "^5.3.3",
+    "webpack": "^5.73.0",
+    "webpack-bundle-analyzer": "^4.5.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-dev-server": "^4.9.3",
+    "webpack-merge": "^5.8.0",
+    "webpack-remove-empty-scripts": "^0.8.1"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.0.4",
+    "@codemirror/language": "^6.2.0",
+    "@lezer/highlight": "^1.0.0",
+    "@lezer/lr": "^1.2.0",
+    "classnames": "^2.3.1",
+    "preact": "^10.10.0",
+    "preact-router": "^4.1.0"
+  }
+}

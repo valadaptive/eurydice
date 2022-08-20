@@ -1,0 +1,63 @@
+@import '../../global.module';
+
+.header {
+    max-width: 1000px;
+    margin: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+
+    background: var(--background);
+
+    display: flex;
+    flex-direction: row;
+    padding: 32px 32px;
+    gap: 32px;
+
+    transition: box-shadow 50ms linear;
+}
+
+.headerScrolled {
+    transition: box-shadow 50ms linear;
+    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.3);
+}
+
+.logoDiv {
+    flex-grow: 1;
+    height: fit-content;
+
+    gap: 0.25rem;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+}
+
+.logoDiv > * {
+    margin: 0;
+}
+
+.logoDiv sup {
+    font-family: 'Inter', sans-serif;
+}
+
+.mobileOnly {
+    display: none;
+}
+
+@media screen and (max-width: $--mobile-width) {
+    .mobileOnly {
+        display: unset;
+    }
+}
+
+a {
+    color: var(--foreground);
+    text-decoration: none;
+}
+
+a:visited {
+    color: var(--foreground);
+    text-decoration: none;
+}

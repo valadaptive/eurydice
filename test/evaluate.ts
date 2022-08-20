@@ -330,4 +330,8 @@ suite('interpreter', () => {
             expect(evaluateString('seq(), seq()', {seq: seq()})).eql([2]);
         });
     });
+
+    test('scope', () => {
+        expect(() => evaluateString('let x @_ p in (let p 5 in x ())')).throws();
+    });
 });

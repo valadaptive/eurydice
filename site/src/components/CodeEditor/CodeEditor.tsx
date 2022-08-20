@@ -1,5 +1,5 @@
 import type {JSX} from 'preact';
-import {Component} from 'preact';
+import {useState, useEffect} from 'preact/hooks';
 import {Text} from '@codemirror/state';
 import CodeView from '../CodeView/CodeView';
 import {FlexVertical} from '../Flex/Flex';
@@ -10,49 +10,30 @@ interface ICodeEditorProps {
     onUpdate?: (doc: Text) => void;
 }
 
-interface ICodeEditorState {
-    doc: Text | string,
-    output: string,
-    worker: Worker
-}
-
-class CodeEditor extends Component<ICodeEditorProps, ICodeEditorState> {
-    state: ICodeEditorState;
-
-    constructor (props: ICodeEditorProps) {
-        super(props);
-
-        this.state = {
-            doc: props.doc || '',
-            output: '',
-            worker: new Worker(new URL('./worker.ts', import.meta.url))
+const CodeEditor = ({doc: initialDoc, readonly, onUpdate: onUpdateProp}: ICodeEditorProps): JSX.Element => {
+    const [worker] = useState(() => new Worker(new URL('./worker.ts', import.meta.url)));
+    useEffect(() => {
+        const onExec = ({data: {success: _success, output}}: { data: { success: boolean, output: string } }): void => {
+            setOutput(output);
         };
+        worker.addEventListener('message', onExec);
+        return () => worker.terminate();
+    }, [worker]);
 
-        if (props.doc) {
-            this.onUpdate(props.doc);
-        }
+    const [output, setOutput] = useState('');
+    const [doc, setDoc] = useState<Text | string>(initialDoc ?? '');
 
-        this.state.worker.addEventListener('message', this.onExec.bind(this));
-    }
+    const onUpdate = (doc: Text): void => {
+        setDoc(doc);
+        worker.postMessage(doc.toString());
+        if (onUpdateProp) onUpdateProp(doc);
+    };
 
-    onUpdate (doc: Text | string): void {
-        this.setState({doc});
-        this.state.worker.postMessage(doc.toString());
-    }
-
-    onExec ({data: {success: _success, output}}: { data: { success: boolean, output: string } }): void {
-        this.setState({output});
-    }
-
-    render (): JSX.Element {
-        return <>
-            <FlexVertical>
-                <CodeView readonly={this.props.readonly || false} highlight={true} onUpdate={this.onUpdate.bind(this)}
-                    doc={this.state.doc}/>
-                <CodeView readonly={true} highlight={false} doc={this.state.output}/>
-            </FlexVertical>
-        </>;
-    }
-}
+    return <FlexVertical>
+        <CodeView readonly={!!readonly} highlight={true} onUpdate={onUpdate}
+            doc={doc}/>
+        <CodeView readonly={true} highlight={false} doc={output}/>
+    </FlexVertical>;
+};
 
 export default CodeEditor;

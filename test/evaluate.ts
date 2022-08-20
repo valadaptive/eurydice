@@ -294,6 +294,10 @@ suite('interpreter', () => {
         expect(evaluateString('let x 5 in (let closure @x @y [x. y] in closure 3), 2')).eql([3, 2]);
     });
 
+    test('multiple partial evaluation', () => {
+        expect(evaluateString('let addOne (let add @x @y x + y in add 1) in [addOne 1. addOne 4]')).eql([2, 5]);
+    });
+
     test('if/else', () => {
         expect(evaluateString('map [0. 2. 4. 1. 3], (@x if x > 2 then 5 else 2)')).eql([2, 2, 5, 2, 5]);
     });

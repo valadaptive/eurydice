@@ -274,16 +274,22 @@ suite('interpreter', () => {
         });
     });
 
-    test('let bindings', () => {
-        expect(evaluateString('let x 5 in [x. x]')).eql([5, 5]);
-    });
+    suite('let bindings', () => {
+        test('basic', () => {
+            expect(evaluateString('let x 5 in [x. x]')).eql([5, 5]);
+        });
 
-    test('multi-variable let bindings', () => {
-        expect(evaluateString('let x 5 and y 3 in [x. y. x. y]')).eql([5, 3, 5, 3]);
-    });
+        test('multi-variable', () => {
+            expect(evaluateString('let x 5 and y 3 in [x. y. x. y]')).eql([5, 3, 5, 3]);
+        });
 
-    test('self-referential let bindings', () => {
-        expect(() => evaluateString('let x 5 and y x + 1 in [x. y. x. y]')).throws();
+        test('self-referential', () => {
+            expect(() => evaluateString('let x 5 and y x + 1 in [x. y. x. y]')).throws();
+        });
+
+        test('recursive', () => {
+            expect(evaluateString('let tri @x (if x = 1 then 1 else x + tri (x - 1)) in tri 3')).equals(6);
+        });
     });
 
     test('parameter binding scope', () => {

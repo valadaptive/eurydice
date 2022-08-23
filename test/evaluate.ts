@@ -290,6 +290,13 @@ suite('interpreter', () => {
         test('recursive', () => {
             expect(evaluateString('let tri @x (if x = 1 then 1 else x + tri (x - 1)) in tri 3')).equals(6);
         });
+
+        test('mutually recursive', () => {
+            expect(evaluateString(`let isEven
+                @x (if x = 0 then 1 else isOdd (x - 1)) and isOdd
+                @x (if x = 0 then 0 else isEven (x - 1)) in
+                [isEven 4. isOdd 6. isEven 5]`)).eql([1, 0, 0]);
+        });
     });
 
     test('parameter binding scope', () => {

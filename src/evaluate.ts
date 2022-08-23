@@ -44,10 +44,35 @@ const expectArrayOf = <T extends Value>(
 
 const expectArrayOfNumbers = expectArrayOf(expectNumber);
 
-type Environment = {
-    variables: Partial<Record<string, Value>>,
-    parent: Environment | null
-};
+class Environment {
+    private variables: Partial<Record<string, Value>>;
+    private parent: Environment | null;
+
+    constructor (variables: Partial<Record<string, Value>>, parent: Environment | null = null) {
+        this.variables = variables;
+        this.parent = parent;
+    }
+
+    lookup (varName: string): Value {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        let currentEnv: Environment | null = this;
+        let varValue;
+        // We could recurse here, but iterating is faster
+        while (typeof varValue === 'undefined' && currentEnv !== null) {
+            varValue = currentEnv.variables[varName];
+            currentEnv = currentEnv.parent;
+        }
+        if (typeof varValue === 'undefined') {
+            throw new Error(`Undefined variable: ${varName}`);
+        }
+        return varValue;
+    }
+
+    update (variables: Partial<Record<string, Value>>): void {
+        this.variables = variables;
+    }
+}
+
 type StackFrame = {
     expr: Expression,
     environment: Environment
@@ -362,7 +387,10 @@ const keepLowest = (items: number[], n: number): number[] => {
         .slice(items.length - n);
 };
 
-const EMPTY_ENV = Object.create(null) as Partial<Record<string, Value>>;
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+const nullProto = (() => Object.create(null) as Partial<Record<string, Value>>);
+
+const EMPTY_ENV = nullProto();
 
 class EvaluationError extends Error {
     expr: Expression;
@@ -378,22 +406,16 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
     }];
-    const rootEnvironment: Environment = {
-        variables: Object.create(null) as Partial<Record<string, Value>>,
-        parent: null
-    };
+    const rootVariables = nullProto();
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
-        rootEnvironment.variables[builtinName] = wrapper(continuations);
+        rootVariables[builtinName] = wrapper(continuations);
     }
     if (environment) {
         for (const [varName, value] of Object.entries(environment)) {
-            if (typeof value === 'function') {
-                rootEnvironment.variables[varName] = value(continuations);
-            } else {
-                rootEnvironment.variables[varName] = value;
-            }
+            rootVariables[varName] = typeof value === 'function' ? value(continuations) : value;
         }
     }
+    const rootEnvironment = new Environment(rootVariables);
     let next: StackFrame | null = {expr, environment: rootEnvironment};
     let currentExpr: Expression = expr;
     try {
@@ -430,15 +452,7 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     break;
                 }
                 case 'variable': {
-                    let currentEnv: Environment | null = environment;
-                    let varValue;
-                    while (typeof varValue === 'undefined' && currentEnv !== null) {
-                        varValue = currentEnv.variables[expr.value];
-                        currentEnv = currentEnv.parent;
-                    }
-                    if (typeof varValue === 'undefined') {
-                        throw new Error(`Undefined variable: ${expr.value}`);
-                    }
+                    const varValue = environment.lookup(expr.value);
                     continuations.pop()!(varValue);
                     break;
                 }
@@ -491,27 +505,21 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     const argName = expr.argument;
                     continuations.pop()!((argValue: Value): void => {
                         // Bind the function argument name to its evaluated value
-                        const newVars = Object.create(null) as Partial<Record<string, Value>>;
+                        const newVars = nullProto();
                         newVars[argName] = argValue;
                         next = {
                             expr: expr.body,
-                            environment: {
-                                variables: newVars,
-                                parent: environment
-                            }
+                            environment: new Environment(newVars, environment)
                         };
                     });
                     break;
                 }
                 case 'let': {
-                    const newVars = Object.create(null) as Partial<Record<string, Value>>;
+                    const newVars = nullProto();
                     // Construct a new environment which will eventually hold the new variables.
                     // We only define its variables once they're all evaluated, so e.g "let x 5 and y x + 1" won't work.
                     // This is to avoid accidentally introducing sequential dependencies.
-                    const newEnv: Environment = {
-                        variables: EMPTY_ENV,
-                        parent: environment
-                    };
+                    const newEnv: Environment = new Environment(EMPTY_ENV, environment);
                     // Evaluate the values of the "let" expression
                     const evalNext = (i: number): void => {
                         next = {expr: expr.variables[i].value, environment: newEnv};
@@ -520,7 +528,7 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                             newVars[expr.variables[i].name] = varValue;
                             if (i === expr.variables.length - 1) {
                                 // Fill in the variable values in the environment with what we've evaluated
-                                newEnv.variables = newVars;
+                                newEnv.update(newVars);
                                 next = {expr: expr.body, environment: newEnv};
                             } else {
                                 evalNext(i + 1);

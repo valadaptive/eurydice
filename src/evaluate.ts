@@ -304,10 +304,18 @@ const builtins: Record<string, WrappedFunction> = {
             report(results);
         });
     }, [expectFunction, expectArrayOfNumbers] as const),
-    highest: wrapFunction((n: number, rolls: number[]) =>
-        keepHighest(rolls, n), [expectNumber, expectArrayOfNumbers] as const),
-    lowest: wrapFunction((n: number, rolls: number[]) =>
-        keepLowest(rolls, n), [expectNumber, expectArrayOfNumbers] as const),
+    highest: wrapFunction(
+        (n: number, items: number[]) => items
+            .slice(0)
+            .sort((a, b) => a - b)
+            .slice(items.length - n),
+        [expectNumber, expectArrayOfNumbers] as const),
+    lowest: wrapFunction(
+        (n: number, items: number[]) => items
+            .slice(0)
+            .sort((a, b) => b - a)
+            .slice(items.length - n),
+        [expectNumber, expectArrayOfNumbers] as const),
     min: wrapFunction((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
     max: wrapFunction((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
 
@@ -371,20 +379,6 @@ const equals = (a: Value, b: Value): boolean => {
         return true;
     }
     return a === b;
-};
-
-const keepHighest = (items: number[], n: number): number[] => {
-    return items
-        .slice(0)
-        .sort((a, b) => a - b)
-        .slice(items.length - n);
-};
-
-const keepLowest = (items: number[], n: number): number[] => {
-    return items
-        .slice(0)
-        .sort((a, b) => b - a)
-        .slice(items.length - n);
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type

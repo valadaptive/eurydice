@@ -141,8 +141,11 @@ suite('interpreter', () => {
                 expect(evaluateString('!2')).equals(-1);
             });
 
-            test('...', () => {
-                expect(evaluateString('...[1. 2. 3]')).equals(6);
+            suite('...', () => {
+                test('numbers', () => expect(evaluateString('...[1. 2. 3]')).equals(6));
+                test('strings', () => expect(evaluateString('...["hello ". "world". "!"]')).equals('hello world!'));
+                test('array append', () => expect(evaluateString('...[[1. "a"]. "b". 5]')).eql([1, 'a', 'b', 5]));
+                test('empty array', () => expect(evaluateString('...[]')).equals(null));
             });
 
             test('- (unary negation)', () => {

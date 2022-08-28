@@ -152,6 +152,30 @@ const wrapDeferred = <G extends readonly ParamGuard<Value>[]>(
     };
 };
 
+const addValues = (lhs: Value, rhs: Value): Value => {
+    // Concatenate arrays
+    if (typeof lhs === 'object' && typeof rhs === 'object' && lhs !== null && rhs !== null) {
+        return [...lhs, ...rhs];
+    }
+    // Append to array
+    if (typeof lhs === 'object' && (typeof rhs !== 'object' || rhs === null) && lhs !== null) {
+        return [...lhs, rhs];
+    }
+    // Prepend to array
+    if ((typeof lhs !== 'object' || lhs === null) && typeof rhs === 'object' && rhs !== null) {
+        return [lhs, ...rhs];
+    }
+    // Add numbers
+    if (typeof lhs === 'number' && typeof rhs === 'number') {
+        return lhs + rhs;
+    }
+    // Concatenate strings (in a separate if block so TypeScript is okay with it)
+    if (typeof lhs === 'string' && typeof rhs === 'string') {
+        return lhs + rhs;
+    }
+    throw new TypeError('Expected number, string, or array');
+};
+
 const builtins: Record<string, WrappedFunction> = {
     /** Round a number down. */
     floor: wrapFunction(Math.floor, [expectNumber]),
@@ -319,29 +343,7 @@ const builtins: Record<string, WrappedFunction> = {
     min: wrapFunction((nums: number[]): number => Math.min(...nums), [expectArrayOfNumbers]),
     max: wrapFunction((nums: number[]): number => Math.max(...nums), [expectArrayOfNumbers]),
 
-    '+': wrapFunction((lhs: Value, rhs: Value) => {
-        // Concatenate arrays
-        if (typeof lhs === 'object' && typeof rhs === 'object' && lhs !== null && rhs !== null) {
-            return [...lhs, ...rhs];
-        }
-        // Append to array
-        if (typeof lhs === 'object' && (typeof rhs !== 'object' || rhs === null) && lhs !== null) {
-            return [...lhs, rhs];
-        }
-        // Prepend to array
-        if ((typeof lhs !== 'object' || lhs === null) && typeof rhs === 'object' && rhs !== null) {
-            return [lhs, ...rhs];
-        }
-        // Add numbers
-        if (typeof lhs === 'number' && typeof rhs === 'number') {
-            return lhs + rhs;
-        }
-        // Concatenate strings (in a separate if block so TypeScript is okay with it)
-        if (typeof lhs === 'string' && typeof rhs === 'string') {
-            return lhs + rhs;
-        }
-        throw new TypeError('Expected number, string, or array');
-    }, [expectAny, expectAny]),
+    '+': wrapFunction(addValues, [expectAny, expectAny]),
     '-': wrapFunction((lhs: number, rhs: number): number => lhs - rhs, [expectNumber, expectNumber]),
     '*': wrapFunction((lhs: number, rhs: number): number => lhs * rhs, [expectNumber, expectNumber]),
     '/': wrapFunction((lhs: number, rhs: number): number => lhs / rhs, [expectNumber, expectNumber]),
@@ -362,9 +364,15 @@ const builtins: Record<string, WrappedFunction> = {
     '|': wrapFunction((lhs: number, rhs: number): number => Math.max(lhs, rhs), [expectNumber, expectNumber]),
     '&': wrapFunction((lhs: number, rhs: number): number => Math.min(lhs, rhs), [expectNumber, expectNumber]),
     '!': wrapFunction((rhs: number) => 1 - rhs, [expectNumber]),
-    '...': wrapFunction((values: number[]) =>
-        values.reduce((prev, cur) => prev + cur, 0),
-    [expectArrayOfNumbers]),
+    '...': wrapFunction((values: Value[]) => {
+        if (values.length === 0) return null;
+        if (values.length === 1) return values[0];
+        let sum = values[0];
+        for (let i = 1; i < values.length; i++) {
+            sum = addValues(sum, values[i]);
+        }
+        return sum;
+    }, [expectArray]),
     negate: wrapFunction((rhs: number): number => -rhs, [expectNumber])
 };
 

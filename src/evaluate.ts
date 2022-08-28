@@ -1,5 +1,5 @@
-import {Expression} from './parse';
-import printValue from './print';
+import {Expression} from './parse.ts';
+import printValue from './print.ts';
 
 type ExprFunc = (arg: Value) => void;
 type Value = number | string | ExprFunc | Value[] | null;

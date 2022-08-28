@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Dice-rolling engine",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
     "coverage": "nyc npm run test",
-    "test": "mocha -u tdd -r ts-node/register test/**",
+    "test": "TS_NODE_TRANSPILE_ONLY=true npx mocha -u tdd -r ts-node/esm test/**",
     "build": "tsc",
     "interactive": "ts-node --transpile-only src/interactive.ts",
     "eval": "ts-node --transpile-only src/index.ts"

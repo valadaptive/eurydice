@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-import parse, {sexpr} from './parse';
-import evaluate, {EvaluationError} from './evaluate';
-import printValue from './print';
-import formatError from './util/format-error';
+import parse, {sexpr} from './parse.ts';
+import evaluate, {EvaluationError} from './evaluate.ts';
+import printValue from './print.ts';
+import formatError from './util/format-error.ts';
 import {readFileSync} from 'fs';
 
 const parseArgs = (args: string[]): {positional: string[], named: Partial<Record<string, string>>} => {

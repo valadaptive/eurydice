@@ -1,5 +1,5 @@
-import Lexer, {TokenType} from './lexer';
-import formatError from './util/format-error';
+import Lexer, {TokenType} from './lexer.ts';
+import formatError from './util/format-error.ts';
 
 type Span = {
     start: number,

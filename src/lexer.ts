@@ -26,6 +26,7 @@ enum TokenType {
 
     AT,
     ARROW,
+    TILDE,
 
     LET,
     LET_AND,
@@ -33,6 +34,8 @@ enum TokenType {
     IF,
     THEN,
     ELSE,
+    HANDLE,
+    CONTINUE,
 
     NUMBER,
     STRING,
@@ -70,15 +73,18 @@ const staticTokenToType: Partial<Record<string, TokenType>> = {
     ',': TokenType.COMMA,
     '.': TokenType.DOT,
     '@': TokenType.AT,
+    '~': TokenType.TILDE,
     'let': TokenType.LET,
     'and': TokenType.LET_AND,
     'in': TokenType.IN,
     'if': TokenType.IF,
     'then': TokenType.THEN,
-    'else': TokenType.ELSE
+    'else': TokenType.ELSE,
+    'handle': TokenType.HANDLE,
+    'continue': TokenType.CONTINUE
 };
 
-const STATIC_TOKEN = String.raw`\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@`;
+const STATIC_TOKEN = String.raw`\+|-|\*\*?|\/|%|<=|<|>=|>|=|!=|\||&|\(|\)|\[|\]|,|\.(?!\.\.)|@|~`;
 const NUMBER = String.raw`(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]\d+)?`;
 const NAME = String.raw`[a-zA-Z_]+|\.\.\.|!`;
 const WHITESPACE = String.raw`\s+`;

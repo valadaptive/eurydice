@@ -1,0 +1,3 @@
+let items @_ [1. 2. ~fail. 4. ~fail] in
+    let hfail @f handle fail @k k "oops" in f () in
+        hfail items

@@ -1,0 +1,7 @@
+let fac @x
+    if x > 1 then
+        x * fac (x - 1)
+    else
+        1 in
+
+fac 4

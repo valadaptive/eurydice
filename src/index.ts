@@ -28,6 +28,6 @@ console.log(sexpr(parsedInput));
 try {
     console.log(printValue(evaluate(parsedInput)));
 } catch (err) {
-    if (err instanceof EvaluationError) throw formatError(err as Error, input, err.expr.start, err.expr.end + 1);
+    //if (err instanceof EvaluationError) throw formatError(err as Error, input, err.expr.start, err.expr.end + 1);
     throw err;
 }

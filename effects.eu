@@ -1,0 +1,10 @@
+let state @f
+	handle set @k @newval (
+		handle get @j (j newval) in
+		k ()
+	) in f ()
+in state @_
+    let _ (~set 0) in
+    let x (~get) in
+    let _ (~set 1) in
+    [x, ~get]

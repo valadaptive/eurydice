@@ -1,0 +1,12 @@
+let state (@f @init
+    let loop
+        @k @x
+            (handle
+                get @k (loop k, x) and
+                set @k (@next state k, next)
+            in k x)
+    in (loop f, init))
+
+    in (state (
+        @_ ["hi". ~get. ~get. ~set 5. ~get]
+    ), 5)

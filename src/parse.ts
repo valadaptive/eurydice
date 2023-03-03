@@ -32,9 +32,23 @@ type ArrayExpression = {
     elements: Expression[]
 } & Span;
 
+type PerformExpression = {
+    type: 'perform',
+    value: string
+} & Span;
+
 type LetExpression = {
     type: 'let',
     variables: {
+        name: string,
+        value: Expression
+    }[],
+    body: Expression
+} & Span;
+
+type HandleExpression = {
+    type: 'handle',
+    handlers: {
         name: string,
         value: Expression
     }[],
@@ -80,10 +94,12 @@ const infixToBuiltin: Partial<Record<TokenType, string>> = {
 type Expression =
 ArrayExpression |
 LetExpression |
+HandleExpression |
 IfExpression |
 UnitExpression |
 FunctionDefinition |
 ApplyExpression |
+PerformExpression |
 NumLiteral |
 StringLiteral |
 Variable;
@@ -91,10 +107,12 @@ Variable;
 const sexpr = (expr: Expression): string => {
     switch (expr.type) {
         case 'variable': return expr.value;
+        case 'perform': return `(perform ${expr.value})`;
         case 'number': return expr.value.toString();
         case 'string': return JSON.stringify(expr.value);
         case 'array': return `(array ${expr.elements.map(elem => sexpr(elem)).join(' ')})`;
         case 'let': return `(let ${expr.variables.map(({name, value}) => `${name} ${sexpr(value)}`).join(' and ')} in ${sexpr(expr.body)})`;
+        case 'handle': return `(handle ${expr.handlers.map(({name, value}) => `${name} ${sexpr(value)}`).join(' and ')} in ${sexpr(expr.body)})`;
         case 'if': return `(if ${sexpr(expr.condition)} then ${sexpr(expr.trueBranch)} else ${sexpr(expr.falseBranch)})`;
         case 'apply': return `(apply ${sexpr(expr.lhs)} ${sexpr(expr.rhs)})`;
         case 'unit': return `()`;
@@ -201,7 +219,9 @@ const parseName = (lexer: Lexer): Variable | null => {
 
 const prefixBindingPower: Partial<Record<TokenType, number>> = {
     [TokenType.AT]: 1,
+    [TokenType.TILDE]: 1,
     [TokenType.LET]: 1,
+    [TokenType.HANDLE]: 1,
     [TokenType.IF]: 3,
     [TokenType.MINUS]: 19,
     [TokenType.NOT]: 19
@@ -212,7 +232,14 @@ const prefixToBuiltin = {
     [TokenType.NOT]: '!'
 };
 
-const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpression | ApplyExpression | null => {
+const parsePrefix = (lexer: Lexer):
+FunctionDefinition |
+LetExpression |
+HandleExpression |
+IfExpression |
+ApplyExpression |
+PerformExpression |
+null => {
     const next = lexer.peek();
     const rbp = prefixBindingPower[next.type];
     if (!rbp) return null;
@@ -256,6 +283,30 @@ const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpre
                 end: body.end
             };
         }
+        case TokenType.HANDLE: {
+            lexer.next();
+            const handlers = [];
+            for (;;) {
+                const nextToken = lexer.next();
+                if (nextToken.type !== TokenType.NAME) throw new Error('Expected effect name');
+                const effectName = nextToken.value;
+                const value = parseExpression(lexer, rbp);
+                if (value === null) throw new Error('Expected expression');
+                handlers.push({name: effectName, value});
+                if (lexer.peek().type !== TokenType.LET_AND) break;
+                lexer.next();
+            }
+            if (lexer.next().type !== TokenType.IN) throw new Error('Expected \'in\'');
+            const body = parseExpression(lexer, rbp);
+            if (body === null) throw new Error('Expected expression');
+            return {
+                type: 'handle',
+                handlers,
+                body,
+                start: next.start,
+                end: body.end
+            };
+        }
         case TokenType.IF: {
             lexer.next();
             const condition = parseExpression(lexer, rbp);
@@ -291,6 +342,17 @@ const parsePrefix = (lexer: Lexer): FunctionDefinition | LetExpression | IfExpre
                 rhs: operand,
                 start: next.start,
                 end: operand.end
+            };
+        }
+        case TokenType.TILDE: {
+            lexer.next();
+            const nextToken = lexer.next();
+            if (nextToken.type !== TokenType.NAME) throw new Error('Expected effect name');
+            return {
+                type: 'perform',
+                value: nextToken.value,
+                start: next.start,
+                end: nextToken.start + nextToken.value.length
             };
         }
     }

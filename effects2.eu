@@ -1,0 +1,12 @@
+let state (@f @init
+    let comp
+        (handle
+            get @k (@value k value)
+        and
+            set @k (@value k @_ ())
+        in f ())
+    in comp init)
+
+    in (state (
+        @_ ["hi". ~get]
+    ), 5)

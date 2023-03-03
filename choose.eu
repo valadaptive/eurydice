@@ -1,0 +1,6 @@
+let choose @n @k
+    if (k = 0) | (n = k) then
+        1
+    else
+        (choose (n - 1), (k - 1)) + (choose (n - 1), k)
+in choose 120, 3

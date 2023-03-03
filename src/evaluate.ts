@@ -44,18 +44,18 @@ const expectArrayOf = <T extends Value>(
 
 const expectArrayOfNumbers = expectArrayOf(expectNumber);
 
-class Environment {
-    private variables: Partial<Record<string, Value>>;
-    private parent: Environment | null;
+class Environment<T> {
+    private variables: Partial<Record<string, T>>;
+    private parent: Environment<T> | null;
 
-    constructor (variables: Partial<Record<string, Value>>, parent: Environment | null = null) {
+    constructor (variables: Partial<Record<string, T>>, parent: Environment<T> | null = null) {
         this.variables = variables;
         this.parent = parent;
     }
 
-    lookup (varName: string): Value {
+    lookup (varName: string): T {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
-        let currentEnv: Environment | null = this;
+        let currentEnv: Environment<T> | null = this;
         let varValue;
         // We could recurse here, but iterating is faster
         while (typeof varValue === 'undefined' && currentEnv !== null) {
@@ -68,14 +68,15 @@ class Environment {
         return varValue;
     }
 
-    update (variables: Partial<Record<string, Value>>): void {
+    update (variables: Partial<Record<string, T>>): void {
         this.variables = variables;
     }
 }
 
 type StackFrame = {
     expr: Expression,
-    environment: Environment
+    environment: Environment<Value>,
+    handlers: Environment<ExprFunc>
 };
 type Continuation = (result: Value) => void;
 type WrappedFunction = (continuations: Continuation[]) => ExprFunc;
@@ -390,9 +391,9 @@ const equals = (a: Value, b: Value): boolean => {
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-const nullProto = (() => Object.create(null) as Partial<Record<string, Value>>);
+const nullProto = <T>() => Object.create(null) as Partial<Record<string, T>>;
 
-const EMPTY_ENV = nullProto();
+const EMPTY_ENV = nullProto<never>();
 
 class EvaluationError extends Error {
     expr: Expression;
@@ -408,7 +409,8 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
     const continuations: Continuation[] = [(result): void => {
         finalResult = result;
     }];
-    const rootVariables = nullProto();
+    const handlerStack: Partial<Record<string, ExprFunc>>[] = [];
+    const rootVariables = nullProto<Value>();
     for (const [builtinName, wrapper] of Object.entries(builtins)) {
         rootVariables[builtinName] = wrapper(continuations);
     }
@@ -418,11 +420,13 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
         }
     }
     const rootEnvironment = new Environment(rootVariables);
-    let next: StackFrame | null = {expr, environment: rootEnvironment};
+    const rootHandlers = new Environment<ExprFunc>(EMPTY_ENV);
+    let next: StackFrame | null = {expr, environment: rootEnvironment, handlers: rootHandlers};
     let currentExpr: Expression = expr;
     try {
         while (next !== null) {
-            const {expr, environment}: StackFrame = next;
+            const {expr, environment, handlers}: StackFrame = next;
+            console.log(next);
             next = null;
             currentExpr = expr;
             switch (expr.type) {
@@ -437,20 +441,19 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                 }
                 case 'array': {
                     const evaluatedElements: Value[] = [];
-                    let elemIndex = 0;
-                    const evalNext = (): void => {
+                    const evalNext = (elemIndex: number): void => {
+                        console.log(elemIndex, expr.elements);
                         if (elemIndex === expr.elements.length) {
                             continuations.pop()!(evaluatedElements);
                             return;
                         }
-                        next = {expr: expr.elements[elemIndex], environment};
+                        next = {expr: expr.elements[elemIndex], environment, handlers};
                         continuations.push(elem => {
                             evaluatedElements.push(elem);
-                            elemIndex++;
-                            evalNext();
+                            evalNext(elemIndex + 1);
                         });
                     };
-                    evalNext();
+                    evalNext(0);
                     break;
                 }
                 case 'variable': {
@@ -459,40 +462,41 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     break;
                 }
                 case 'apply': {
-                    next = {expr: expr.lhs, environment};
+                    next = {expr: expr.lhs, environment, handlers};
                     continuations.push(lhs => {
                         switch (typeof lhs) {
                             // Eagerly evaluate right-hand side and pass into function
                             case 'function': {
-                                next = {expr: expr.rhs, environment};
+                                console.log('call function', expr.lhs);
+                                next = {expr: expr.rhs, environment, handlers};
                                 continuations.push(rhs => {
                                     lhs(rhs);
+                                    console.log('called function', expr.lhs);
                                 });
                                 break;
                             }
                             // Evaluate right-hand side n times
                             case 'number': {
                                 const evaluatedElements: Value[] = [];
-                                let numRemaining = lhs;
-                                const evalNext = (): void => {
+                                const evalNext = (numRemaining: number): void => {
                                     if (numRemaining <= 0) {
                                         continuations.pop()!(evaluatedElements);
                                         return;
                                     }
-                                    next = {expr: expr.rhs, environment};
+                                    next = {expr: expr.rhs, environment, handlers};
                                     continuations.push(elem => {
                                         evaluatedElements.push(elem);
-                                        numRemaining--;
-                                        evalNext();
+                                        evalNext(numRemaining - 1);
                                     });
                                 };
-                                evalNext();
+                                evalNext(lhs);
                                 break;
                             }
                             case 'object': {
                                 const arr = expectArray(lhs);
+                                console.log(arr);
 
-                                next = {expr: expr.rhs, environment};
+                                next = {expr: expr.rhs, environment, handlers};
                                 continuations.push(rhs => {
                                     rhs = Math.round(expectNumber(rhs));
                                     if (rhs < 0 || rhs >= arr.length) throw new Error(`Array index ${rhs} out of bounds`);
@@ -507,31 +511,32 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     const argName = expr.argument;
                     continuations.pop()!((argValue: Value): void => {
                         // Bind the function argument name to its evaluated value
-                        const newVars = nullProto();
+                        const newVars = nullProto<Value>();
                         newVars[argName] = argValue;
                         next = {
                             expr: expr.body,
-                            environment: new Environment(newVars, environment)
+                            environment: new Environment(newVars, environment),
+                            handlers
                         };
                     });
                     break;
                 }
                 case 'let': {
-                    const newVars = nullProto();
+                    const newVars = nullProto<Value>();
                     // Construct a new environment which will eventually hold the new variables.
                     // We only define its variables once they're all evaluated, so e.g "let x 5 and y x + 1" won't work.
                     // This is to avoid accidentally introducing sequential dependencies.
-                    const newEnv: Environment = new Environment(EMPTY_ENV, environment);
+                    const newEnv = new Environment(EMPTY_ENV, environment);
                     // Evaluate the values of the "let" expression
                     const evalNext = (i: number): void => {
-                        next = {expr: expr.variables[i].value, environment: newEnv};
+                        next = {expr: expr.variables[i].value, environment: newEnv, handlers};
                         continuations.push(varValue => {
                             // Add the variable's evaluated value to the environment's (eventual) new variables
                             newVars[expr.variables[i].name] = varValue;
                             if (i === expr.variables.length - 1) {
                                 // Fill in the variable values in the environment with what we've evaluated
                                 newEnv.update(newVars);
-                                next = {expr: expr.body, environment: newEnv};
+                                next = {expr: expr.body, environment: newEnv, handlers};
                             } else {
                                 evalNext(i + 1);
                             }
@@ -541,18 +546,69 @@ const evaluate = (expr: Expression, environment?: Partial<Record<string, EnvValu
                     break;
                 }
                 case 'if': {
-                    next = {expr: expr.condition, environment};
+                    next = {expr: expr.condition, environment, handlers};
                     continuations.push(condValue => {
                         next = {
                             expr: truthy(expectNumber(condValue)) ? expr.trueBranch : expr.falseBranch,
-                            environment
+                            environment,
+                            handlers
                         };
                     });
+                    break;
+                }
+                case 'handle': {
+                    const newHandlerMap = nullProto<ExprFunc>();
+                    const newHandlerEnv = new Environment(EMPTY_ENV, handlers);
+                    const evalNext = (i: number): void => {
+                        const handler = expr.handlers[i];
+                        next = {expr: handler.value, environment, handlers};
+                        continuations.push(handlerFunc => {
+                            newHandlerMap[handler.name] = expectFunction(handlerFunc);
+                            if (i === expr.handlers.length - 1) {
+                                handlerStack.push(newHandlerMap);
+                                newHandlerEnv.update(newHandlerMap);
+                                console.log(`evaluating handler for ${expr.handlers.map(h => h.name).join(', ')}`, handlerStack);
+                                next = {expr: expr.body, environment, handlers: newHandlerEnv};
+                                continuations.push(result => {
+                                    console.log(`done with handler ${expr.handlers.map(h => h.name).join(', ')}`, result);
+                                    continuations.pop()!(result);
+                                    handlerStack.pop();
+                                });
+                            } else {
+                                evalNext(i + 1);
+                            }
+                        });
+                    };
+                    evalNext(0);
+                    break;
+                }
+                case 'perform': {
+                    console.log(`perform effect ${expr.value}`, handlerStack);
+                    let handlerFrame: Partial<Record<string, ExprFunc>>, handler;
+                    let i = handlerStack.length - 1;
+                    do {
+                        handlerFrame = handlerStack[i--];
+                        handler = handlerFrame[expr.value];
+                    } while (typeof handler === 'undefined' && i >= 0);
+                    if (typeof handler === 'undefined') throw new Error(`Undefined handler ${expr.value}`);
+                    //const handler = handlers.lookup(expr.value);
+                    // i think this is the part that's wrong
+                    const continuation = continuations.pop()!;
+                    handler((arg: Value) => {
+                        continuation(arg);
+                        //console.log('re-push handlers', handlerFrame);
+                        //handlerStack.push(handlerFrame);
+                    });
+                    break;
                 }
             }
+            if (typeof next?.expr === 'undefined') console.log('expr: ', expr);
         }
+
     } catch (err) {
-        throw new EvaluationError((err as Error).message, currentExpr);
+        const e = new EvaluationError((err as Error).message, currentExpr);
+        e.stack = (err as Error).stack;
+        throw e;
     }
     return finalResult!;
 };

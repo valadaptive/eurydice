@@ -1,0 +1,13 @@
+let state @f @init
+	handle set @newval
+		(state f newval)
+	and get @_
+		s
+	in
+		f init
+
+in state (@_
+    let _ (~set 0) in
+    let x (~get ()) in
+    let _ (~set 1) in
+    [x, ~get ()]), (-1)

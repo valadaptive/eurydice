@@ -1,0 +1,9 @@
+let explode @numRolls @roll @cond
+    let explodeOne @rolls @roll @cond
+        let result roll() in in
+        if cond result then
+            rolls + result + explodeOne rolls, roll, cond
+        else
+            result in
+    reduce (numRolls (explodeOne [], roll, cond)), (@prev @cur prev + cur), [] in
+explode 5, (@_ d20), (@x x > 10)
